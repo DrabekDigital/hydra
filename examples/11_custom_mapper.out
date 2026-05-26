@@ -1,0 +1,22 @@
+
+=== Input ===
+  name: "Keyboard" <string>
+  price: 4999 <int>
+  salePrice: <array(2)>
+    cents: 3999 <int>
+    currency: "USD" <string>
+
+=== Hydrate ===
+name: Keyboard
+price: $49.99
+salePrice: $39.99
+
+=== Dehydrate ===
+{
+    "name": "Keyboard",
+    "price": 4999,
+    "salePrice": {
+        "cents": 3999,
+        "currency": "USD"
+    }
+}

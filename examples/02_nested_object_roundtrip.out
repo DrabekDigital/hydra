@@ -1,0 +1,21 @@
+
+=== Input ===
+  name: "Alice" <string>
+  address: <array(3)>
+    street: "1 Main St" <string>
+    city: "Prague" <string>
+    zip: "11000" <string>
+
+=== Hydrate ===
+name: Alice
+address: 1 Main St, Prague
+
+=== Dehydrate ===
+{
+    "name": "Alice",
+    "address": {
+        "street": "1 Main St",
+        "city": "Prague",
+        "zip": "11000"
+    }
+}

@@ -1,0 +1,22 @@
+
+=== Input ===
+  status: "active" <string>
+  priority: 3 <int>
+
+=== Hydrate ===
+status: active
+priority: High (3)
+
+=== Dehydrate ===
+{
+    "status": "active",
+    "priority": 3
+}
+
+=== Input ===
+  status: "unknown" <string>
+  priority: 99 <int>
+
+=== Invalid enum value ===
+  [invalid_value] status: Invalid enum value for 'status': "unknown"
+  [invalid_value] priority: Invalid enum value for 'priority': 99

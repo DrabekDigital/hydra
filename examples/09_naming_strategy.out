@@ -1,0 +1,17 @@
+
+=== Input ===
+  first_name: "Jan" <string>
+  last_name: "Drabek" <string>
+  legacy_email: "jan@example.com" <string>
+
+=== Hydrate (underscore_case input) ===
+firstName: Jan
+lastName: Drabek
+emailAddress: jan@example.com
+
+=== Dehydrate (underscore_case output) ===
+{
+    "first_name": "Jan",
+    "last_name": "Drabek",
+    "public_email": "jan@example.com"
+}

@@ -1,0 +1,20 @@
+
+=== Input ===
+  name: "Alice" <string>
+  age: 30 <int>
+  height: 1.72 <float>
+  active: true <bool>
+
+=== Hydrate ===
+name: Alice
+age: 30
+height: 1.72
+active: true
+
+=== Dehydrate ===
+{
+    "name": "Alice",
+    "age": 30,
+    "height": 1.72,
+    "active": true
+}

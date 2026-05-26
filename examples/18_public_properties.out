@@ -1,0 +1,25 @@
+
+=== Input ===
+  host: "localhost" <string>
+  port: 5432 <int>
+
+=== Hydrate public-property DTO ===
+host: localhost
+port: 5432
+logLevel: info (from DefaultValue)
+
+=== Dehydrate ===
+{
+    "host": "localhost",
+    "port": 5432,
+    "logLevel": "info"
+}
+
+=== Input ===
+  name: "Alice" <string>
+  email: "alice@example.com" <string>
+
+=== Undefinable on public-property DTO ===
+name: Alice
+email: alice@example.com
+phone initialized: no

@@ -1,0 +1,39 @@
+
+=== Input ===
+  title: "Hydra intro" <string>
+  keywords: <array(3)>
+    0: "php" <string>
+    1: "hydration" <string>
+    2: "serialization" <string>
+  tags: <array(2)>
+    0: <array(2)>
+      name: "PHP" <string>
+      color: "#8892BF" <string>
+    1: <array(2)>
+      name: "Library" <string>
+      color: "#4CAF50" <string>
+
+=== Hydrate ===
+title: Hydra intro
+keywords: php, hydration, serialization
+tags: PHP (#8892BF), Library (#4CAF50)
+
+=== Dehydrate ===
+{
+    "title": "Hydra intro",
+    "keywords": [
+        "php",
+        "hydration",
+        "serialization"
+    ],
+    "tags": [
+        {
+            "name": "PHP",
+            "color": "#8892BF"
+        },
+        {
+            "name": "Library",
+            "color": "#4CAF50"
+        }
+    ]
+}

@@ -1,0 +1,66 @@
+
+=== Input ===
+  title: "Hydra — complex no-constructor example" <string>
+  subtitle: "All features, no constructor" <string>
+  status: "published" <string>
+  view_count: 1234 <int>
+  internal_id: "sys-9f3a" <string>
+  created_by: <array(3)>
+    display_name: "Jan Novák" <string>
+    bio: "Senior PHP developer" <string>
+    role: "editor" <string>
+  tags: <array(2)>
+    0: <array(2)>
+      name: "PHP" <string>
+      slug: "php" <string>
+    1: <array(2)>
+      name: "Open Source" <string>
+      slug: "open-source" <string>
+  categories: <array(2)>
+    0: "backend" <string>
+    1: "tooling" <string>
+
+=== Hydrate ===
+title:      Hydra — complex no-constructor example
+subtitle:   All features, no constructor
+status:     published
+viewCount:  1234
+internalId: sys-9f3a (hydrated from internal_id)
+author:     Jan Novák [editor]
+tags:       PHP, Open Source
+categories: backend, tooling
+
+=== Hydrate (minimal — defaults) ===
+status:    draft (PHP default)
+viewCount: 0 (PHP default)
+author role: author (PHP default on PostAuthor)
+tags count: 0
+
+=== Dehydrate ===
+{
+    "title": "Hydra — complex no-constructor example",
+    "subtitle": "All features, no constructor",
+    "status": "published",
+    "view_count": 1234,
+    "author": {
+        "display_name": "Jan Novák",
+        "bio": "Senior PHP developer",
+        "role": "editor"
+    },
+    "tags": [
+        {
+            "name": "PHP",
+            "slug": "php"
+        },
+        {
+            "name": "Open Source",
+            "slug": "open-source"
+        }
+    ],
+    "categories": [
+        "backend",
+        "tooling"
+    ]
+}
+internal_id present in output: no
+author key in output: author (not created_by)

@@ -1,0 +1,10 @@
+
+=== Valid team ===
+Validation passed.
+
+=== Invalid — errors carry dotted paths ===
+  [too_short] teamName: String 'teamName' is too short, minimum length is 2
+  [too_short] owner.name: String 'name' is too short, minimum length is 3
+  [out_of_range] owner.score: Value of 'score' must be <= 100
+  [too_short] members.0.name: String 'name' is too short, minimum length is 3
+  [out_of_range] members.1.score: Value of 'score' must be >= 0

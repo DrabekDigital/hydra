@@ -1,0 +1,22 @@
+
+=== Input ===
+  name: "Alice" <string>
+  phone: "+420 123 456 789" <string>
+  countryCode: "CZ" <string>
+  birthDate: "1990-05-15" <string>
+
+=== Valid — all patterns match ===
+phone: +420 123 456 789
+countryCode: CZ
+birthDate: 1990-05-15
+
+=== Input ===
+  name: "Bob" <string>
+  phone: "abc-xyz" <string>
+  countryCode: "czech" <string>
+  birthDate: "15/05/1990" <string>
+
+=== Invalid — pattern mismatches ===
+  [pattern_mismatch] phone: String 'phone' does not match required pattern
+  [pattern_mismatch] countryCode: Must be a 2–3 letter ISO country code
+  [pattern_mismatch] birthDate: String 'birthDate' does not match required pattern

@@ -1,0 +1,40 @@
+
+=== Input ===
+  traveller: "Jan" <string>
+  scores: <array(3)>
+    paris: 9 <int>
+    tokyo: 10 <int>
+    berlin: 7 <int>
+  visited: <array(2)>
+    paris: <array(2)>
+      city: "Paris" <string>
+      country: "France" <string>
+    tokyo: <array(2)>
+      city: "Tokyo" <string>
+      country: "Japan" <string>
+
+=== Hydrate ===
+traveller: Jan
+scores: paris=9, tokyo=10, berlin=7
+visited[paris]: Paris, France
+visited[tokyo]: Tokyo, Japan
+
+=== Dehydrate ===
+{
+    "traveller": "Jan",
+    "scores": {
+        "paris": 9,
+        "tokyo": 10,
+        "berlin": 7
+    },
+    "visited": {
+        "paris": {
+            "city": "Paris",
+            "country": "France"
+        },
+        "tokyo": {
+            "city": "Tokyo",
+            "country": "Japan"
+        }
+    }
+}

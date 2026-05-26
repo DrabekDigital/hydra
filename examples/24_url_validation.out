@@ -1,0 +1,26 @@
+
+=== Input ===
+  title: "My Service" <string>
+  homepageUrl: "http://example.com" <string>
+  apiUrl: "https://api.example.com/v1" <string>
+
+=== Valid — both URLs accepted ===
+homepageUrl: http://example.com
+apiUrl: https://api.example.com/v1
+
+=== Input ===
+  title: "Bad Service" <string>
+  homepageUrl: "not-a-url" <string>
+  apiUrl: "http://api.example.com" <string>
+
+=== Invalid — malformed URL + wrong scheme for apiUrl ===
+  [invalid_url] homepageUrl: String 'homepageUrl' is not a valid URL
+  [invalid_url] apiUrl: URL 'apiUrl' has unsupported scheme 'http'
+
+=== Input ===
+  title: "No Scheme" <string>
+  homepageUrl: "example.com" <string>
+  apiUrl: "https://api.example.com" <string>
+
+=== Invalid — URL without scheme ===
+  [invalid_url] homepageUrl: String 'homepageUrl' is not a valid URL

@@ -1,0 +1,50 @@
+
+=== Input ===
+  name: "Alpha" <string>
+  members: <array(3)>
+    0: "Alice" <string>
+    1: "Bob" <string>
+    2: "Carol" <string>
+  tags: <array(2)>
+    0: "php" <string>
+    1: "backend" <string>
+
+=== Valid — count and uniqueness satisfied ===
+team: Alpha, members: 3
+
+=== Input ===
+  name: "Beta" <string>
+  members: <array(6)>
+    0: "A" <string>
+    1: "B" <string>
+    2: "C" <string>
+    3: "D" <string>
+    4: "E" <string>
+    5: "F" <string>
+  tags: <array(1)>
+    0: "php" <string>
+
+=== Invalid — too many members (max 5) ===
+  [count_too_high] members: Array 'members' has too many items, maximum is 5
+
+=== Input ===
+  name: "Gamma" <string>
+  members: <array(3)>
+    0: "Alice" <string>
+    1: "Bob" <string>
+    2: "Alice" <string>
+  tags: <array(1)>
+    0: "php" <string>
+
+=== Invalid — duplicate members ===
+  [not_unique] members: Array 'members' contains duplicate values
+
+=== Input ===
+  name: "Delta" <string>
+  members: <array(1)>
+    0: "Solo" <string>
+  tags: <array(0)>
+
+=== Invalid — too few members (min 2) + empty tags (min 1) ===
+  [count_too_low] members: Array 'members' has too few items, minimum is 2
+  [count_too_low] tags: Array 'tags' has too few items, minimum is 1

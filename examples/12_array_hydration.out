@@ -1,0 +1,53 @@
+
+=== Input ===
+  0: <array(3)>
+    sku: "A1" <string>
+    name: "Mouse" <string>
+    price: 999 <int>
+  1: <array(3)>
+    sku: "A2" <string>
+    name: "Keyboard" <string>
+    price: 2499 <int>
+
+=== hydrateArray — uniform type ===
+  A1: Mouse (999 cents)
+  A2: Keyboard (2499 cents)
+
+=== Input ===
+  0: <array(4)>
+    type: "car" <string>
+    brand: "Toyota" <string>
+    year: 2023 <int>
+    doors: 4 <int>
+  1: <array(4)>
+    type: "truck" <string>
+    brand: "Ford" <string>
+    year: 2022 <int>
+    loadKg: 3000 <int>
+
+=== hydrateArray — discriminated ===
+  CarDTO: Toyota 2023
+  TruckDTO: Ford 2022
+
+=== dehydrateArray ===
+[
+    {
+        "sku": "A1",
+        "name": "Mouse",
+        "price": 999
+    },
+    {
+        "sku": "A2",
+        "name": "Keyboard",
+        "price": 2499
+    }
+]
+
+=== Input ===
+  0: <array(3)>
+    type: "spaceship" <string>
+    brand: "SpaceX" <string>
+    year: 2025 <int>
+
+=== Unknown discriminator value ===
+  [invalid_value] [0]: Unknown discriminator value for 'type': "spaceship"

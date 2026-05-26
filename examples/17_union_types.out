@@ -1,0 +1,29 @@
+
+=== Input ===
+  value: 42 <int>
+  identifier: "sensor-1" <string>
+
+=== int|float — receives int ===
+value: 42 (integer)
+identifier: sensor-1
+
+=== Input ===
+  value: 3.14 <float>
+  identifier: 99 <int>
+
+=== int|float — receives float ===
+value: 3.14 (double)
+identifier: 99 (integer)
+
+=== Dehydrate ===
+{
+    "value": 3.14,
+    "identifier": 99
+}
+
+=== Input ===
+  value: "not-a-number" <string>
+  identifier: 1 <int>
+
+=== Type not in union → error ===
+  [type_mismatch] value: Expected int|float for 'value', got string

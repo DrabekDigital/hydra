@@ -1,0 +1,15 @@
+
+=== Input ===
+  id: "P-1" <string>
+  name: "Keyboard" <string>
+  price: 2499 <int>
+
+=== First run — generates and caches ===
+hydrated: Keyboard (P-1)
+dehydrated: {"id":"P-1","name":"Keyboard","price":2499}
+has=2, get=2, set=2
+
+=== Second run — reads from cache ===
+hydrated: Keyboard (P-1)
+dehydrated: {"id":"P-1","name":"Keyboard","price":2499}
+has=4, get=4, set=2

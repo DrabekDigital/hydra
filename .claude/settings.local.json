@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./vendor/bin/phpunit)",
+      "Bash(composer stan *)",
+      "Bash(composer fixer *)",
+      "Bash(composer cs:fix)",
+      "Bash(composer cs:check)",
+      "Bash(composer tests:unit)",
+      "Bash(composer tests *)"
+    ]
+  }
+}

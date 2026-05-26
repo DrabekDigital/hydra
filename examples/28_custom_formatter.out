@@ -1,0 +1,34 @@
+
+=== Input ===
+  value: "1.234,56" <string>
+  currency: "EUR" <string>
+
+=== Hydrate Money — European decimal string → float ===
+value (float): 1234.56
+currency: EUR
+
+=== Dehydrate Money — float → European decimal string ===
+{
+    "value": "1.234,56",
+    "currency": "EUR"
+}
+
+=== Input ===
+  id: "INV-001" <string>
+  subtotal: "9.999,00" <string>
+  tax: "1.999,80" <string>
+  slug: "My Summer Invoice  2025" <string>
+
+=== Hydrate InvoiceDTO — numeric strings + hydrate-only slug formatter ===
+subtotal: 9999
+tax: 1999.8
+total: 11998.8
+slug: my-summer-invoice-2025
+
+=== Dehydrate InvoiceDTO — floats back to comma-decimal, slug passed through ===
+{
+    "id": "INV-001",
+    "subtotal": "9.999,00",
+    "tax": "1.999,80",
+    "slug": "my-summer-invoice-2025"
+}

@@ -1,0 +1,12 @@
+
+=== Valid object ===
+Validation passed.
+
+=== Invalid object (all errors collected) ===
+  [out_of_range] discountPercent: Value of 'discountPercent' must be >= 1
+  [pattern_mismatch] code: String 'code' does not match required pattern
+  [invalid_url] landingPage: URL 'landingPage' has unsupported scheme 'ftp'
+  [count_too_high] tags: Array 'tags' has too many items, maximum is 3
+  [not_unique] tags: Array 'tags' contains duplicate values
+  [custom] promoCode: Promo code must start with HYDRA-
+  [too_short] ownerName: String 'ownerName' is too short, minimum length is 3

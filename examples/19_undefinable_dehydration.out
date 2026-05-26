@@ -1,0 +1,21 @@
+
+=== Input ===
+  userId: "u1" <string>
+  theme: "dark" <string>
+  language: "cs" <string>
+
+=== All properties initialized ===
+{
+    "userId": "u1",
+    "theme": "dark",
+    "language": "cs"
+}
+
+=== Input ===
+  userId: "u2" <string>
+
+=== Undefinable properties missing from input ===
+theme initialized: no
+language initialized: no
+theme in output: no (key omitted)
+language in output: yes → false

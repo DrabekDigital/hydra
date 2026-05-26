@@ -1,0 +1,61 @@
+{
+    "name": "drabek-digital/hydra",
+    "description": "🌊 Modern PHP serialization, deserialization and validation library using PHP 8.4 attributes",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "serialization",
+        "deserialization",
+        "hydration",
+        "dehydration",
+        "validation",
+        "dto",
+        "attributes",
+        "php8"
+    ],
+    "authors": [
+        {
+            "name": "Drábek Digital s.r.o.",
+            "email": "info@drabek.digital"
+        }
+    ],
+    "require": {
+        "php": ">=8.5",
+        "nikic/php-parser": "^5.0",
+        "psr/simple-cache": "^3.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "DrabekDigital\\Hydra\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DrabekDigital\\Hydra\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "tests:unit": "phpunit",
+        "tests:coverage:pcov": [
+            "@php -r \"is_dir('build/coverage') || mkdir('build/coverage', 0777, true);\"",
+            "php -dpcov.enabled=1 -dpcov.directory=src vendor/bin/phpunit --coverage-text --coverage-clover build/coverage/clover.xml --coverage-html build/coverage/html"
+        ],
+        "coverage": "@tests:coverage:pcov",
+        "tests:examples": "php bin/test-examples.php",
+        "tests:examples:update": "php bin/test-examples.php --update",
+        "tests": ["@tests:unit", "@tests:examples"],
+        "cs:check": "php-cs-fixer fix --dry-run --diff",
+        "cs:fix": "php-cs-fixer fix",
+        "stan": "phpstan analyse -c phpstan.neon --memory-limit=1G",
+        "all": ["@tests", "@cs:check", "@stan"]
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable"
+}

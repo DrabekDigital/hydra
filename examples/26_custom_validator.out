@@ -1,0 +1,14 @@
+
+=== Input ===
+  amount: "99.99" <string>
+  cardNumber: "4532015112830366" <string>
+
+=== Valid — card number passes Luhn check ===
+cardNumber: 4532015112830366 ✓
+
+=== Input ===
+  amount: "9.99" <string>
+  cardNumber: "1234567890123456" <string>
+
+=== Invalid — card number fails Luhn check ===
+  [custom] cardNumber: 'cardNumber' is not a valid card number (Luhn check failed)

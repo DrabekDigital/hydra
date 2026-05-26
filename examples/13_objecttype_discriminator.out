@@ -1,0 +1,47 @@
+
+=== Input ===
+  featured: <array(4)>
+    type: "car" <string>
+    brand: "Skoda" <string>
+    year: 2024 <int>
+    doors: 5 <int>
+  vehicles: <array(2)>
+    0: <array(4)>
+      type: "car" <string>
+      brand: "Toyota" <string>
+      year: 2020 <int>
+      doors: 4 <int>
+    1: <array(4)>
+      type: "motorcycle" <string>
+      brand: "Honda" <string>
+      year: 2019 <int>
+      engineCC: 750 <int>
+
+=== Hydrate ===
+featured: CarDTO — Skoda
+vehicles[0]: CarDTO — Toyota 2020
+vehicles[1]: MotorcycleDTO — Honda 2019
+
+=== Dehydrate ===
+{
+    "featured": {
+        "brand": "Skoda",
+        "year": 2024,
+        "doors": 5,
+        "type": "car"
+    },
+    "vehicles": [
+        {
+            "brand": "Toyota",
+            "year": 2020,
+            "doors": 4,
+            "type": "car"
+        },
+        {
+            "brand": "Honda",
+            "year": 2019,
+            "engineCC": 750,
+            "type": "motorcycle"
+        }
+    ]
+}

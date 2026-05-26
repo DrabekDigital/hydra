@@ -1,0 +1,20 @@
+
+=== Input ===
+  FirstName: "Jan" <string>
+  LastName: "Drabek" <string>
+  EmailAddress: "jan@example.com" <string>
+  YearOfBirth: 1990 <int>
+
+=== Hydrate (PascalCase input → camelCase properties) ===
+firstName: Jan
+lastName: Drabek
+emailAddress: jan@example.com
+yearOfBirth: 1990
+
+=== Dehydrate (camelCase properties → PascalCase output) ===
+{
+    "FirstName": "Jan",
+    "LastName": "Drabek",
+    "EmailAddress": "jan@example.com",
+    "YearOfBirth": 1990
+}

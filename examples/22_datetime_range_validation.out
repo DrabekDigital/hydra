@@ -1,0 +1,22 @@
+
+=== Input ===
+  name: "Conference" <string>
+  startsAt: "2025-06-15T10:00:00+00:00" <string>
+
+=== Valid date within range ===
+Validation passed.
+startsAt: 2025-06-15
+
+=== Input ===
+  name: "Past event" <string>
+  startsAt: "2024-12-31T00:00:00+00:00" <string>
+
+=== Date before range minimum ===
+  [out_of_range] startsAt: DateTime 'startsAt' must be >= 2025-01-01T00:00:00+00:00
+
+=== Input ===
+  name: "Future event" <string>
+  startsAt: "2026-01-01T00:00:00+00:00" <string>
+
+=== Date after range maximum ===
+  [out_of_range] startsAt: DateTime 'startsAt' must be <= 2025-12-31T23:59:59+00:00

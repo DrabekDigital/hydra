@@ -1,0 +1,9 @@
+cache/
+.phpunit.result.cache/
+.phpunit.cache/
+.php-cs-fixer.cache
+.phpstan/
+vendor/
+example*.php
+build/
+.phpstan.out

@@ -1,0 +1,22 @@
+
+=== Input ===
+  name: "Alice" <string>
+
+=== Missing required key ===
+  [missing_key] age: Missing required key 'age'
+
+=== Input ===
+  name: 42 <int>
+  age: "not-a-number" <string>
+
+=== Type mismatch ===
+  [type_mismatch] name: Expected string for 'name', got integer
+  [type_mismatch] age: Expected int for 'age', got string
+
+=== Input ===
+  name: "Alice" <string>
+  age: 30 <int>
+  unknown: "x" <string>
+
+=== Unexpected key ===
+  [unexpected_key] unknown: Unexpected key 'unknown'

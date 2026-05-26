@@ -1,0 +1,25 @@
+
+=== Input ===
+  required: "yes" <string>
+  nullable: "present" <string>
+  optional: "set" <string>
+
+=== Nullable with value ===
+nullable: present
+withDefault: fallback
+optional: set
+
+=== Input ===
+  required: "yes" <string>
+  nullable: null <null>
+
+=== Nullable as null + default applied + undefinable missing ===
+nullable: null
+withDefault: fallback
+optional initialized: no
+
+=== Input ===
+  nullable: null <null>
+
+=== Missing required key ===
+  [missing_key] required: Missing required key 'required'

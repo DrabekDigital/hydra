@@ -1,0 +1,44 @@
+<?php
+
+declare(strict_types=1);
+
+namespace DrabekDigital\Hydra\Validators\Rules;
+
+use DrabekDigital\Hydra\Attributes\Validation\UniqueItems;
+use DrabekDigital\Hydra\Errors\ValidationError;
+use DrabekDigital\Hydra\Errors\ValidationErrorCode;
+
+final class UniqueItemsRule
+{
+    public function __construct(private readonly UniqueItems $rule) {}
+
+    /**
+     * @param array<mixed> $value
+     *
+     * @return list<ValidationError>
+     */
+    public function validate(array $value, string $key, string $fullPath): array
+    {
+        $comparator = $this->rule->comparator;
+        $count = count($value);
+
+        for ($i = 0; $i < $count; ++$i) {
+            for ($j = $i + 1; $j < $count; ++$j) {
+                $isEqual = $comparator !== null
+                    ? $comparator($value[$i], $value[$j]) === true
+                    : $value[$i] === $value[$j];
+
+                if ($isEqual) {
+                    return [new ValidationError(
+                        code: ValidationErrorCode::NOT_UNIQUE,
+                        programmerMessage: "Array '{$key}' contains duplicate values",
+                        key: $key,
+                        fullPath: $fullPath,
+                    )];
+                }
+            }
+        }
+
+        return [];
+    }
+}

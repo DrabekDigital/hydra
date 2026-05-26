@@ -1,0 +1,47 @@
+
+=== Hydrate — ListOf hydrates objects, ArrayOf passes through ===
+
+=== Input ===
+  comments: <array(2)>
+    0: <array(2)>
+      author: "Alice" <string>
+      text: "Great post!" <string>
+    1: <array(2)>
+      author: "Bob" <string>
+      text: "Thanks!" <string>
+  tags: <array(3)>
+    0: "php" <string>
+    1: "hydra" <string>
+    2: "serialization" <string>
+comments[0] is CommentDTO: yes
+tags[0] is plain string: yes
+
+=== Dehydrate ===
+{
+    "comments": [
+        {
+            "author": "Alice",
+            "text": "Great post!"
+        },
+        {
+            "author": "Bob",
+            "text": "Thanks!"
+        }
+    ],
+    "tags": [
+        "php",
+        "hydra",
+        "serialization"
+    ]
+}
+
+=== Input ===
+  comments: <array(1)>
+    0: <array(2)>
+      author: "Alice" <string>
+      text: "" <string>
+  tags: <array(1)>
+    0: "php" <string>
+
+=== Validator recurses into ArrayOf object items for validation ===
+  [too_short] comments.0.text: String 'text' is too short, minimum length is 1
