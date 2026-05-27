@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: read
 
@@ -18,21 +21,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - tests
-          - cs:check
-          - stan
-          - coverage
+        include:
+          - target: tests
+            coverage: none
+          - target: cs:check
+            coverage: none
+          - target: stan
+            coverage: none
+          - target: coverage
+            coverage: pcov
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          coverage: none
+          coverage: ${{ matrix.coverage }}
           tools: composer:v2
 
       - name: Install dependencies
