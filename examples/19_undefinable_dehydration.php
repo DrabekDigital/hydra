@@ -3,15 +3,16 @@
 require_once __DIR__ . '/bootstrap.php';
 
 use DrabekDigital\Hydra\Attributes\Undefinable;
+use DrabekDigital\Hydra\Attributes\UndefinedDehydration;
 
 // #[Undefinable] controls whether the property is required in the input
 // and what appears in the dehydrated output when the property was never initialized.
 //
 //   #[Undefinable]                         → uninitialized: key OMITTED from output
-//   #[Undefinable(onDehydrationWhen: 'x')] → uninitialized: key present with value 'x'
-//
-// NOTE: onDehydrationWhen: null is the default (= omit key). To emit a null value
-// for an uninitialized property, use a sentinel like false or a dedicated string.
+//   #[Undefinable(onUndefinedDehydration: UndefinedDehydration::AS_VALUE, undefinedAs: 'x')]
+//     → uninitialized: key present with value 'x'
+//   #[Undefinable(onUndefinedDehydration: UndefinedDehydration::AS_NULL)]
+//     → uninitialized: key present with null
 
 final class PreferenceDTO
 {
@@ -19,7 +20,7 @@ final class PreferenceDTO
         public readonly string $userId,
         #[Undefinable]
         public readonly ?string $theme,
-        #[Undefinable(onDehydrationWhen: false)]
+        #[Undefinable(onUndefinedDehydration: UndefinedDehydration::AS_VALUE, undefinedAs: false)]
         public readonly ?string $language,
     ) {}
 }

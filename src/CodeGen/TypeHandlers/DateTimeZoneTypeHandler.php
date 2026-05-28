@@ -253,8 +253,8 @@ final class DateTimeZoneTypeHandler implements TypeHandler
         }
 
         $elseStmts = null;
-        if ($prop->undefinableOnDehydrationWhen !== null) {
-            $elseStmts = [HydraAst::assignResult($outputKey, Ast::toExpr($prop->undefinableOnDehydrationWhen))];
+        if ($prop->shouldEmitUndefinedDehydrationValue()) {
+            $elseStmts = [HydraAst::assignResult($outputKey, Ast::toExpr($prop->undefinedDehydrationValue))];
         }
 
         return [

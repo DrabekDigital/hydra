@@ -86,7 +86,7 @@ class CustomAndNestedTypeHandlerTest extends TestCase
         $undefFallback = $this->makeFormatterProperty(
             name: 'title',
             isUndefinable: true,
-            undefinableOnDehydrationWhen: 'missing'
+            undefinedDehydrationValue: 'missing'
         );
 
         $context = $this->makeContext([$simple, $nullable, $undef, $undefFallback]);
@@ -181,7 +181,7 @@ class CustomAndNestedTypeHandlerTest extends TestCase
         $undefFallback = $this->makeMapperProperty(
             name: 'price',
             isUndefinable: true,
-            undefinableOnDehydrationWhen: 0
+            undefinedDehydrationValue: 0
         );
 
         $context = $this->makeContext([$simple, $nullable, $undef, $undefFallback]);
@@ -266,7 +266,7 @@ class CustomAndNestedTypeHandlerTest extends TestCase
             name: 'address',
             types: [AddressDTO::class],
             isUndefinable: true,
-            undefinableOnDehydrationWhen: []
+            undefinedDehydrationValue: []
         );
 
         $context = $this->makeContext([$simple, $nullable, $undef, $undefFallback]);
@@ -284,7 +284,7 @@ class CustomAndNestedTypeHandlerTest extends TestCase
         bool $hasDefault = false,
         mixed $defaultValue = null,
         bool $isUndefinable = false,
-        mixed $undefinableOnDehydrationWhen = null,
+        mixed $undefinedDehydrationValue = null,
     ): PropertyMetadata {
         return $this->makeProperty(
             name: $name,
@@ -294,7 +294,7 @@ class CustomAndNestedTypeHandlerTest extends TestCase
             defaultValue: $defaultValue,
             isBuiltin: true,
             isUndefinable: $isUndefinable,
-            undefinableOnDehydrationWhen: $undefinableOnDehydrationWhen,
+            undefinedDehydrationValue: $undefinedDehydrationValue,
             attributes: [
                 CustomFormatter::class => new CustomFormatter(
                     hydrate: static fn (mixed $value): mixed => $value,
@@ -310,7 +310,7 @@ class CustomAndNestedTypeHandlerTest extends TestCase
         bool $hasDefault = false,
         mixed $defaultValue = null,
         bool $isUndefinable = false,
-        mixed $undefinableOnDehydrationWhen = null,
+        mixed $undefinedDehydrationValue = null,
     ): PropertyMetadata {
         return $this->makeProperty(
             name: $name,
@@ -320,7 +320,7 @@ class CustomAndNestedTypeHandlerTest extends TestCase
             defaultValue: $defaultValue,
             isBuiltin: true,
             isUndefinable: $isUndefinable,
-            undefinableOnDehydrationWhen: $undefinableOnDehydrationWhen,
+            undefinedDehydrationValue: $undefinedDehydrationValue,
             attributes: [AsMoney::class => new AsMoney()]
         );
     }
@@ -352,7 +352,7 @@ class CustomAndNestedTypeHandlerTest extends TestCase
         bool $hasAttributeDefault = false,
         mixed $attributeDefaultValue = null,
         bool $isUndefinable = false,
-        mixed $undefinableOnDehydrationWhen = null,
+        mixed $undefinedDehydrationValue = null,
         array $attributes = [],
     ): PropertyMetadata {
         return new PropertyMetadata(
@@ -365,7 +365,7 @@ class CustomAndNestedTypeHandlerTest extends TestCase
             hasAttributeDefault: $hasAttributeDefault,
             attributeDefaultValue: $attributeDefaultValue,
             isUndefinable: $isUndefinable,
-            undefinableOnDehydrationWhen: $undefinableOnDehydrationWhen,
+            undefinedDehydrationValue: $undefinedDehydrationValue,
             attributes: $attributes,
         );
     }

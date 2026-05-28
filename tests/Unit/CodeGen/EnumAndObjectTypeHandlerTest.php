@@ -132,7 +132,7 @@ class EnumAndObjectTypeHandlerTest extends TestCase
             name: 'status',
             types: [Status::class],
             isUndefinable: true,
-            undefinableOnDehydrationWhen: 'draft'
+            undefinedDehydrationValue: 'draft'
         );
 
         $this->assertNotEmpty($handler->generateDehydration($simple, $this->makeContext([$simple])));
@@ -376,7 +376,7 @@ class EnumAndObjectTypeHandlerTest extends TestCase
         bool $hasAttributeDefault = false,
         mixed $attributeDefaultValue = null,
         bool $isUndefinable = false,
-        mixed $undefinableOnDehydrationWhen = null,
+        mixed $undefinedDehydrationValue = null,
         array $attributes = [],
     ): PropertyMetadata {
         return new PropertyMetadata(
@@ -389,7 +389,7 @@ class EnumAndObjectTypeHandlerTest extends TestCase
             hasAttributeDefault: $hasAttributeDefault,
             attributeDefaultValue: $attributeDefaultValue,
             isUndefinable: $isUndefinable,
-            undefinableOnDehydrationWhen: $undefinableOnDehydrationWhen,
+            undefinedDehydrationValue: $undefinedDehydrationValue,
             attributes: $attributes,
         );
     }

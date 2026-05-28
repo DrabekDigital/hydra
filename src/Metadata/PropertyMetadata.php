@@ -20,7 +20,8 @@ readonly class PropertyMetadata
         public bool $hasAttributeDefault = false,
         public mixed $attributeDefaultValue = null,
         public bool $isUndefinable = false,
-        public mixed $undefinableOnDehydrationWhen = null,
+        public mixed $undefinedDehydrationValue = null,
+        public bool $hasUndefinedDehydrationFallback = false,
         public array $attributes = [],
     ) {}
 
@@ -59,6 +60,12 @@ readonly class PropertyMetadata
     public function getPrimaryType(): ?string
     {
         return $this->types[0] ?? null;
+    }
+
+    public function shouldEmitUndefinedDehydrationValue(): bool
+    {
+        return $this->hasUndefinedDehydrationFallback
+            || $this->undefinedDehydrationValue !== null;
     }
 
     /**

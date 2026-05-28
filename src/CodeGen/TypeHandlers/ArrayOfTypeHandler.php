@@ -325,8 +325,8 @@ final class ArrayOfTypeHandler implements TypeHandler
             : $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $pathExpr);
 
         $elseStmts = null;
-        if ($property->undefinableOnDehydrationWhen !== null) {
-            $elseStmts = [HydraAst::assignResult($outputKey, Ast::toExpr($property->undefinableOnDehydrationWhen))];
+        if ($property->shouldEmitUndefinedDehydrationValue()) {
+            $elseStmts = [HydraAst::assignResult($outputKey, Ast::toExpr($property->undefinedDehydrationValue))];
         }
 
         return [

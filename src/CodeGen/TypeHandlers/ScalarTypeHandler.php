@@ -231,10 +231,10 @@ final class ScalarTypeHandler implements TypeHandler
 
         $thenStmts = [HydraAst::assignResult($outputKey, HydraAst::objectProperty($name))];
 
-        // If onDehydrationWhen is set, use it for uninitialized properties
+        // Emit configured fallback for undefined properties when requested.
         $elseStmts = null;
-        if ($prop->undefinableOnDehydrationWhen !== null) {
-            $elseStmts = [HydraAst::assignResult($outputKey, Ast::toExpr($prop->undefinableOnDehydrationWhen))];
+        if ($prop->shouldEmitUndefinedDehydrationValue()) {
+            $elseStmts = [HydraAst::assignResult($outputKey, Ast::toExpr($prop->undefinedDehydrationValue))];
         }
 
         return [

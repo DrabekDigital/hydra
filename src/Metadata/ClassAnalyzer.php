@@ -6,6 +6,7 @@ namespace DrabekDigital\Hydra\Metadata;
 
 use DrabekDigital\Hydra\Attributes\DefaultValue;
 use DrabekDigital\Hydra\Attributes\Undefinable;
+use DrabekDigital\Hydra\Attributes\UndefinedDehydration;
 
 class ClassAnalyzer
 {
@@ -196,13 +197,19 @@ class ClassAnalyzer
 
         // Check for #[Undefinable] attribute
         $isUndefinable = false;
-        $undefinableOnDehydrationWhen = null;
+        $undefinedDehydrationValue = null;
+        $hasUndefinedDehydrationFallback = false;
         if (isset($attributes[Undefinable::class])) {
             $isUndefinable = true;
 
             /** @var Undefinable $undefinableAttribute */
             $undefinableAttribute = $attributes[Undefinable::class];
-            $undefinableOnDehydrationWhen = $undefinableAttribute->onDehydrationWhen;
+            $undefinedDehydrationValue = match ($undefinableAttribute->onUndefinedDehydration) {
+                UndefinedDehydration::SKIP => null,
+                UndefinedDehydration::AS_NULL => null,
+                UndefinedDehydration::AS_VALUE => $undefinableAttribute->undefinedAs,
+            };
+            $hasUndefinedDehydrationFallback = $undefinableAttribute->onUndefinedDehydration !== UndefinedDehydration::SKIP;
         }
 
         return new PropertyMetadata(
@@ -215,7 +222,8 @@ class ClassAnalyzer
             hasAttributeDefault: $hasAttributeDefault,
             attributeDefaultValue: $attributeDefaultValue,
             isUndefinable: $isUndefinable,
-            undefinableOnDehydrationWhen: $undefinableOnDehydrationWhen,
+            undefinedDehydrationValue: $undefinedDehydrationValue,
+            hasUndefinedDehydrationFallback: $hasUndefinedDehydrationFallback,
             attributes: $attributes,
         );
     }
@@ -271,13 +279,19 @@ class ClassAnalyzer
 
         // Check for #[Undefinable] attribute
         $isUndefinable = false;
-        $undefinableOnDehydrationWhen = null;
+        $undefinedDehydrationValue = null;
+        $hasUndefinedDehydrationFallback = false;
         if (isset($attributes[Undefinable::class])) {
             $isUndefinable = true;
 
             /** @var Undefinable $undefinableAttribute */
             $undefinableAttribute = $attributes[Undefinable::class];
-            $undefinableOnDehydrationWhen = $undefinableAttribute->onDehydrationWhen;
+            $undefinedDehydrationValue = match ($undefinableAttribute->onUndefinedDehydration) {
+                UndefinedDehydration::SKIP => null,
+                UndefinedDehydration::AS_NULL => null,
+                UndefinedDehydration::AS_VALUE => $undefinableAttribute->undefinedAs,
+            };
+            $hasUndefinedDehydrationFallback = $undefinableAttribute->onUndefinedDehydration !== UndefinedDehydration::SKIP;
         }
 
         return new PropertyMetadata(
@@ -290,7 +304,8 @@ class ClassAnalyzer
             hasAttributeDefault: $hasAttributeDefault,
             attributeDefaultValue: $attributeDefaultValue,
             isUndefinable: $isUndefinable,
-            undefinableOnDehydrationWhen: $undefinableOnDehydrationWhen,
+            undefinedDehydrationValue: $undefinedDehydrationValue,
+            hasUndefinedDehydrationFallback: $hasUndefinedDehydrationFallback,
             attributes: $attributes,
         );
     }

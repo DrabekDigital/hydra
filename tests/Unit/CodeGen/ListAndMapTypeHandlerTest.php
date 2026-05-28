@@ -172,7 +172,7 @@ class ListAndMapTypeHandlerTest extends TestCase
             name: 'items',
             valueType: 'string',
             isUndefinable: true,
-            undefinableOnDehydrationWhen: []
+            undefinedDehydrationValue: []
         );
 
         $this->assertNotEmpty($handler->generateDehydration($withoutFallback, $this->makeContext([$withoutFallback])));
@@ -312,7 +312,7 @@ class ListAndMapTypeHandlerTest extends TestCase
             name: 'scores',
             valueType: 'int',
             isUndefinable: true,
-            undefinableOnDehydrationWhen: []
+            undefinedDehydrationValue: []
         );
 
         $this->assertNotEmpty($handler->generateDehydration($withoutFallback, $this->makeContext([$withoutFallback])));
@@ -339,7 +339,7 @@ class ListAndMapTypeHandlerTest extends TestCase
         bool $hasDefault = false,
         mixed $defaultValue = null,
         bool $isUndefinable = false,
-        mixed $undefinableOnDehydrationWhen = null,
+        mixed $undefinedDehydrationValue = null,
         ?ListOf $listOf = null,
     ): PropertyMetadata {
         $listOf ??= new ListOf($valueType);
@@ -352,7 +352,7 @@ class ListAndMapTypeHandlerTest extends TestCase
             defaultValue: $defaultValue,
             isBuiltin: true,
             isUndefinable: $isUndefinable,
-            undefinableOnDehydrationWhen: $undefinableOnDehydrationWhen,
+            undefinedDehydrationValue: $undefinedDehydrationValue,
             attributes: [ListOf::class => $listOf]
         );
     }
@@ -364,7 +364,7 @@ class ListAndMapTypeHandlerTest extends TestCase
         bool $hasDefault = false,
         mixed $defaultValue = null,
         bool $isUndefinable = false,
-        mixed $undefinableOnDehydrationWhen = null,
+        mixed $undefinedDehydrationValue = null,
         ?MapOf $mapOf = null,
     ): PropertyMetadata {
         $mapOf ??= new MapOf(value: $valueType);
@@ -377,7 +377,7 @@ class ListAndMapTypeHandlerTest extends TestCase
             defaultValue: $defaultValue,
             isBuiltin: true,
             isUndefinable: $isUndefinable,
-            undefinableOnDehydrationWhen: $undefinableOnDehydrationWhen,
+            undefinedDehydrationValue: $undefinedDehydrationValue,
             attributes: [MapOf::class => $mapOf]
         );
     }
@@ -396,7 +396,7 @@ class ListAndMapTypeHandlerTest extends TestCase
         bool $hasAttributeDefault = false,
         mixed $attributeDefaultValue = null,
         bool $isUndefinable = false,
-        mixed $undefinableOnDehydrationWhen = null,
+        mixed $undefinedDehydrationValue = null,
         array $attributes = [],
     ): PropertyMetadata {
         return new PropertyMetadata(
@@ -409,7 +409,7 @@ class ListAndMapTypeHandlerTest extends TestCase
             hasAttributeDefault: $hasAttributeDefault,
             attributeDefaultValue: $attributeDefaultValue,
             isUndefinable: $isUndefinable,
-            undefinableOnDehydrationWhen: $undefinableOnDehydrationWhen,
+            undefinedDehydrationValue: $undefinedDehydrationValue,
             attributes: $attributes,
         );
     }

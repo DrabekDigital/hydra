@@ -20,6 +20,7 @@ use DrabekDigital\Hydra\Tests\Fixtures\Dto\PersonDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ScalarListDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\SimpleDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\TagDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\UndefinableAsNullDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\UndefinableDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\UnionScalarDTO;
 use DrabekDigital\Hydra\Tests\TestCase;
@@ -221,6 +222,17 @@ class HydratorTest extends TestCase
         $this->assertSame('param_default', $dto->paramDefault);
 
         $ref = new \ReflectionProperty($dto, 'undefinable');
+        $this->assertFalse($ref->isInitialized($dto));
+    }
+
+    public function testUndefinableAsNullPolicyStillRemainsUninitializedWhenMissing(): void
+    {
+        $dto = $this->hydrator->hydrate(
+            ['name' => 'John'],
+            UndefinableAsNullDTO::class
+        );
+
+        $ref = new \ReflectionProperty($dto, 'optional');
         $this->assertFalse($ref->isInitialized($dto));
     }
 

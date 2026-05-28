@@ -129,7 +129,7 @@ class DateAndZoneTypeHandlerTest extends TestCase
             name: 'archivedAt',
             types: [\DateTimeImmutable::class],
             isUndefinable: true,
-            undefinableOnDehydrationWhen: 'missing'
+            undefinedDehydrationValue: 'missing'
         );
 
         $this->assertNotEmpty($handler->generateDehydration($withoutFallback, $this->makeContext([$withoutFallback])));
@@ -207,7 +207,7 @@ class DateAndZoneTypeHandlerTest extends TestCase
             name: 'tz',
             types: [\DateTimeZone::class],
             isUndefinable: true,
-            undefinableOnDehydrationWhen: 'UTC'
+            undefinedDehydrationValue: 'UTC'
         );
 
         $this->assertNotEmpty($handler->generateDehydration($withoutFallback, $this->makeContext([$withoutFallback])));
@@ -241,7 +241,7 @@ class DateAndZoneTypeHandlerTest extends TestCase
         bool $hasAttributeDefault = false,
         mixed $attributeDefaultValue = null,
         bool $isUndefinable = false,
-        mixed $undefinableOnDehydrationWhen = null,
+        mixed $undefinedDehydrationValue = null,
         array $attributes = [],
     ): PropertyMetadata {
         return new PropertyMetadata(
@@ -254,7 +254,7 @@ class DateAndZoneTypeHandlerTest extends TestCase
             hasAttributeDefault: $hasAttributeDefault,
             attributeDefaultValue: $attributeDefaultValue,
             isUndefinable: $isUndefinable,
-            undefinableOnDehydrationWhen: $undefinableOnDehydrationWhen,
+            undefinedDehydrationValue: $undefinedDehydrationValue,
             attributes: $attributes,
         );
     }

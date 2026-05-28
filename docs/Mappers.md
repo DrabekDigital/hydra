@@ -6,6 +6,7 @@
 <?php declare(strict_types=1);
 
 use DrabekDigital\Hydra\Attributes\Undefinable;
+use DrabekDigital\Hydra\Attributes\UndefinedDehydration;
 use DrabekDigital\Hydra\Attributes\DefaultValue;
 
 class Person
@@ -32,9 +33,12 @@ class Person
         // If the field is not present in the input and no default value is specified it will throw an error (also on dehydration)
         public readonly ?string $instagramProfile,
 
-        // If the field is not present in the input it will be set to unitialized value
-        // On dehydration it will be skipped if still unitialized value or to specified value based on onDehydrationWhen attribute
-        #[Undefinable(onDehydrationWhen: null)] 
+        // If the field is not present in the input it remains uninitialized.
+        // On dehydration policy is explicit:
+        // - SKIP: omit key
+        // - AS_NULL: emit null
+        // - AS_VALUE: emit value from undefinedAs
+        #[Undefinable(onUndefinedDehydration: UndefinedDehydration::AS_NULL)]
         public readonly ?string $facebookProfile,
     ) {}
 }
@@ -330,9 +334,9 @@ Limitation of this approach is that you cannot check nor return any errors. Note
 
 ## Extra fields
 
-By default all extra fields are not allowed, to allow them you can use `#[AllowExtraKeys]` attribute.
+By default all extra fields are not allowed, to allow them you can use `#[AllowExtraKeys]` attribute, but they won't be mapped, just the hydration will pass ignoring them.
 
 ## Skipped fields
 
 Whe you want to skip a field from being hydrated or dehydrated you can use
-`#[Skip(hydration: true, dehydration: true)]` attribute.
+`#[Skip(hydration: true, dehydration: true)]` attribute. Beware that default values for both fields is `true`!

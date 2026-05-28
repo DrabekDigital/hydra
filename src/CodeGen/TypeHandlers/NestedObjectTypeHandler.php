@@ -304,10 +304,10 @@ final class NestedObjectTypeHandler implements TypeHandler
             $thenStmts = [HydraAst::wrapInDehydrationCatch([HydraAst::assignResult($outputKey, HydraAst::nestedDehydrate($type, $name, $path))])];
         }
 
-        // If onDehydrationWhen is set, use it for uninitialized properties
+        // Emit configured fallback for undefined properties when requested.
         $elseStmts = null;
-        if ($prop->undefinableOnDehydrationWhen !== null) {
-            $elseStmts = [HydraAst::assignResult($outputKey, Ast::toExpr($prop->undefinableOnDehydrationWhen))];
+        if ($prop->shouldEmitUndefinedDehydrationValue()) {
+            $elseStmts = [HydraAst::assignResult($outputKey, Ast::toExpr($prop->undefinedDehydrationValue))];
         }
 
         return [

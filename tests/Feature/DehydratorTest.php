@@ -17,6 +17,8 @@ use DrabekDigital\Hydra\Tests\Fixtures\Dto\PersonDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ScalarListDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\SimpleDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\TagDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\UndefinableAsNullDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\UndefinableDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\UndefinableWithFallbackDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Enums\Priority;
 use DrabekDigital\Hydra\Tests\Fixtures\Enums\Status;
@@ -224,7 +226,32 @@ class DehydratorTest extends TestCase
         ]);
     }
 
-    public function testDehydratesUndefinableWithOnDehydrationFallbackWhenMissing(): void
+    public function testDehydratesUndefinableSkipsKeyWhenMissing(): void
+    {
+        $dto = $this->hydrator->hydrate(
+            ['name' => 'John'],
+            UndefinableDTO::class
+        );
+
+        $result = $this->dehydrator->dehydrate($dto);
+        $this->assertSame('John', $result['name']);
+        $this->assertArrayNotHasKey('optional', $result);
+    }
+
+    public function testDehydratesUndefinableAsNullWhenMissing(): void
+    {
+        $dto = $this->hydrator->hydrate(
+            ['name' => 'John'],
+            UndefinableAsNullDTO::class
+        );
+
+        $result = $this->dehydrator->dehydrate($dto);
+        $this->assertSame('John', $result['name']);
+        $this->assertArrayHasKey('optional', $result);
+        $this->assertNull($result['optional']);
+    }
+
+    public function testDehydratesUndefinableAsValueWhenMissing(): void
     {
         $dto = $this->hydrator->hydrate(
             ['name' => 'John'],
@@ -234,6 +261,30 @@ class DehydratorTest extends TestCase
         $result = $this->dehydrator->dehydrate($dto);
         $this->assertSame('John', $result['name']);
         $this->assertSame('missing', $result['optional']);
+    }
+
+    public function testDehydratesUndefinableAsNullWhenInitialized(): void
+    {
+        $dto = $this->hydrator->hydrate(
+            ['name' => 'John', 'optional' => 'value'],
+            UndefinableAsNullDTO::class
+        );
+
+        $result = $this->dehydrator->dehydrate($dto);
+        $this->assertSame('John', $result['name']);
+        $this->assertSame('value', $result['optional']);
+    }
+
+    public function testDehydratesUndefinableAsValueWhenInitialized(): void
+    {
+        $dto = $this->hydrator->hydrate(
+            ['name' => 'John', 'optional' => 'value'],
+            UndefinableWithFallbackDTO::class
+        );
+
+        $result = $this->dehydrator->dehydrate($dto);
+        $this->assertSame('John', $result['name']);
+        $this->assertSame('value', $result['optional']);
     }
 
     // =========================================================================

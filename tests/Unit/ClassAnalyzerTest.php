@@ -9,6 +9,7 @@ use DrabekDigital\Hydra\Attributes\DefaultValue;
 use DrabekDigital\Hydra\Attributes\ListOf;
 use DrabekDigital\Hydra\Attributes\MapperAttribute;
 use DrabekDigital\Hydra\Attributes\Undefinable;
+use DrabekDigital\Hydra\Attributes\UndefinedDehydration;
 use DrabekDigital\Hydra\Metadata\ClassAnalyzer;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\AllScalarsDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArticleDTO;
@@ -29,6 +30,7 @@ use DrabekDigital\Hydra\Tests\Fixtures\Dto\StructureHashOrderSecondDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\StructureHashPlainDateDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\StructureHashWithDefaultDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\TagDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\UndefinableAsNullDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\UndefinableDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\UndefinableWithFallbackDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\UnionScalarDTO;
@@ -133,7 +135,8 @@ class ClassAnalyzerTest extends TestCase
 
         $optionalProp = $properties[1];
         $this->assertTrue($optionalProp->isUndefinable);
-        $this->assertNull($optionalProp->undefinableOnDehydrationWhen);
+        $this->assertNull($optionalProp->undefinedDehydrationValue);
+        $this->assertFalse($optionalProp->hasUndefinedDehydrationFallback);
     }
 
     public function testDetectsUndefinableOnDehydrationWhen(): void
@@ -142,7 +145,18 @@ class ClassAnalyzerTest extends TestCase
 
         $optionalProp = $properties[1];
         $this->assertTrue($optionalProp->isUndefinable);
-        $this->assertSame('missing', $optionalProp->undefinableOnDehydrationWhen);
+        $this->assertSame('missing', $optionalProp->undefinedDehydrationValue);
+        $this->assertTrue($optionalProp->hasUndefinedDehydrationFallback);
+    }
+
+    public function testDetectsUndefinableAsNullPolicy(): void
+    {
+        $properties = $this->analyzer->analyze(UndefinableAsNullDTO::class);
+
+        $optionalProp = $properties[1];
+        $this->assertTrue($optionalProp->isUndefinable);
+        $this->assertNull($optionalProp->undefinedDehydrationValue);
+        $this->assertTrue($optionalProp->hasUndefinedDehydrationFallback);
     }
 
     // =========================================================================
@@ -340,7 +354,7 @@ class ClassAnalyzerTest extends TestCase
             public static string $ignored = 'ignored';
 
             #[DefaultValue('fallback')]
-            #[Undefinable(onDehydrationWhen: 'missing')]
+            #[Undefinable(onUndefinedDehydration: UndefinedDehydration::AS_VALUE, undefinedAs: 'missing')]
             public int|\stdClass|null $unionWithAttributes;
         };
 
@@ -356,7 +370,7 @@ class ClassAnalyzerTest extends TestCase
         $this->assertTrue($property->hasAttributeDefault);
         $this->assertSame('fallback', $property->attributeDefaultValue);
         $this->assertTrue($property->isUndefinable);
-        $this->assertSame('missing', $property->undefinableOnDehydrationWhen);
+        $this->assertSame('missing', $property->undefinedDehydrationValue);
     }
 
     public function testStructureHashSkipsStaticPropertiesOnPublicPropertiesPath(): void
