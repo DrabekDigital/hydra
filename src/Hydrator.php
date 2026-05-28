@@ -296,6 +296,15 @@ class Hydrator
                 $nestedHydrator = $this->getHydrator($mapOf->value, $bypassCache);
                 $hydrator->setNestedHydrator($mapOf->value, $nestedHydrator);
             }
+            if ($mapOf !== null && $mapOf->mapping !== null) {
+                foreach ($mapOf->mapping as $mappedClass) {
+                    if (!class_exists($mappedClass)) {
+                        throw new \RuntimeException("Mapped class {$mappedClass} does not exist");
+                    }
+                    $nestedHydrator = $this->getHydrator($mappedClass, $bypassCache);
+                    $hydrator->setNestedHydrator($mappedClass, $nestedHydrator);
+                }
+            }
 
             $objectType = $property->getAttribute(ObjectType::class);
             if ($objectType !== null && $objectType->value !== null && $this->analyzer->isObjectType($objectType->value)) {

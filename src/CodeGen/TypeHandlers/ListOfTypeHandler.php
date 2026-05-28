@@ -19,6 +19,8 @@ use PhpParser\Node\Stmt;
  */
 final class ListOfTypeHandler implements TypeHandler
 {
+    private const SUPPORTED_SCALAR_TYPES = ['string', 'int', 'float', 'bool', 'array', 'mixed', 'null'];
+
     public function __construct(
         private readonly ClassAnalyzer $analyzer,
     ) {}
@@ -703,13 +705,48 @@ final class ListOfTypeHandler implements TypeHandler
             );
         }
 
+        $isSupportedScalarType = in_array($itemType, self::SUPPORTED_SCALAR_TYPES, true);
         $isClassObjectType = $this->analyzer->isObjectType($itemType);
         $isInterfaceType = interface_exists($itemType);
+        if (!$isSupportedScalarType && !$isClassObjectType && !$isInterfaceType) {
+            throw new \InvalidArgumentException(
+                "Invalid ListOf configuration for '{$name}': unsupported value type '{$itemType}'. "
+                .'Use supported scalar type, class, or interface.'
+            );
+        }
+
+        if ($hasDiscriminator && !$isClassObjectType && !$isInterfaceType) {
+            throw new \InvalidArgumentException(
+                "Invalid ListOf configuration for '{$name}': discriminator and mapping require class or interface value type."
+            );
+        }
 
         if ($isInterfaceType && !$hasDiscriminator) {
             throw new \InvalidArgumentException(
                 "Invalid ListOf configuration for '{$name}': interface item type '{$itemType}' requires discriminator and mapping."
             );
+        }
+
+        if ($hasMapping) {
+            foreach ($attr->mapping as $discValue => $mappedClass) {
+                if (!class_exists($mappedClass)) {
+                    throw new \InvalidArgumentException(
+                        "Invalid ListOf configuration for '{$name}': mapped class '{$mappedClass}' for discriminator '{$discValue}' does not exist."
+                    );
+                }
+
+                if (!$isClassObjectType && !$isInterfaceType) {
+                    throw new \InvalidArgumentException(
+                        "Invalid ListOf configuration for '{$name}': mapping requires class or interface value type."
+                    );
+                }
+
+                if (!is_a($mappedClass, $itemType, true)) {
+                    throw new \InvalidArgumentException(
+                        "Invalid ListOf configuration for '{$name}': mapped class '{$mappedClass}' must be subtype of '{$itemType}'."
+                    );
+                }
+            }
         }
 
         return $isClassObjectType || $isInterfaceType;

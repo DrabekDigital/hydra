@@ -137,8 +137,8 @@ class HydratorCoverageTest extends TestCase
 
     public function testListOfMappingWithMissingClassThrowsDuringNestedRegistration(): void
     {
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Mapped class Stringable does not exist');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('mapped class');
         $this->hydrator->hydrate(['vehicles' => []], ListOfMissingMappedClassDTO::class);
     }
 

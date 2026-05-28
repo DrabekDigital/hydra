@@ -1,0 +1,35 @@
+
+=== Input ===
+  vehicles: <array(2)>
+    first: <array(4)>
+      type: "car" <string>
+      brand: "Toyota" <string>
+      year: 2020 <int>
+      doors: 4 <int>
+    second: <array(4)>
+      type: "motorcycle" <string>
+      brand: "Honda" <string>
+      year: 2019 <int>
+      engineCC: 750 <int>
+
+=== Hydrate ===
+vehicles[first]: CarByKeyDTO — Toyota 2020
+vehicles[second]: MotorcycleByKeyDTO — Honda 2019
+
+=== Dehydrate ===
+{
+    "vehicles": {
+        "first": {
+            "brand": "Toyota",
+            "year": 2020,
+            "doors": 4,
+            "type": "car"
+        },
+        "second": {
+            "brand": "Honda",
+            "year": 2019,
+            "engineCC": 750,
+            "type": "motorcycle"
+        }
+    }
+}

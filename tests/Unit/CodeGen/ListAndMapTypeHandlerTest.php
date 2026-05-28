@@ -165,6 +165,38 @@ class ListAndMapTypeHandlerTest extends TestCase
         $handler->generateHydration($missingMapping, $this->makeContext([$missingMapping]));
     }
 
+    public function testListOfGenerateHydrationThrowsWhenScalarTypeIsInvalid(): void
+    {
+        $handler = new ListOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeListProperty(
+            name: 'invalid',
+            valueType: 'integer',
+            listOf: new ListOf('integer')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('unsupported value type');
+        $handler->generateHydration($property, $this->makeContext([$property]));
+    }
+
+    public function testListOfGenerateHydrationThrowsWhenMappedTypeIsNotSubtypeOfValueType(): void
+    {
+        $handler = new ListOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeListProperty(
+            name: 'vehicles',
+            valueType: AddressDTO::class,
+            listOf: new ListOf(
+                value: AddressDTO::class,
+                discriminator: 'type',
+                mapping: ['car' => Car::class]
+            )
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('must be subtype');
+        $handler->generateHydration($property, $this->makeContext([$property]));
+    }
+
     public function testListOfGenerateDehydrationSimpleScalarAndObjectBranches(): void
     {
         $handler = new ListOfTypeHandler(new ClassAnalyzer());
@@ -244,6 +276,38 @@ class ListAndMapTypeHandlerTest extends TestCase
         $handler->generateDehydration($missingMapping, $this->makeContext([$missingMapping]));
     }
 
+    public function testListOfGenerateDehydrationThrowsWhenScalarTypeIsInvalid(): void
+    {
+        $handler = new ListOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeListProperty(
+            name: 'invalid',
+            valueType: 'integer',
+            listOf: new ListOf('integer')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('unsupported value type');
+        $handler->generateDehydration($property, $this->makeContext([$property]));
+    }
+
+    public function testListOfGenerateDehydrationThrowsWhenMappedTypeIsNotSubtypeOfValueType(): void
+    {
+        $handler = new ListOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeListProperty(
+            name: 'vehicles',
+            valueType: AddressDTO::class,
+            listOf: new ListOf(
+                value: AddressDTO::class,
+                discriminator: 'type',
+                mapping: ['car' => Car::class]
+            )
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('must be subtype');
+        $handler->generateDehydration($property, $this->makeContext([$property]));
+    }
+
     public function testMapOfSupportsOnlyWhenAttributePresent(): void
     {
         $handler = new MapOfTypeHandler(new ClassAnalyzer());
@@ -291,6 +355,30 @@ class ListAndMapTypeHandlerTest extends TestCase
         $this->assertContains(AddressDTO::class, $context->getNestedTypes());
     }
 
+    public function testMapOfGenerateHydrationDiscriminatorMappingRegistersAllNestedTypes(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeMapProperty(
+            name: 'vehicles',
+            valueType: Vehicle::class,
+            mapOf: new MapOf(
+                value: Vehicle::class,
+                discriminator: 'type',
+                mapping: ['car' => Car::class, 'motorcycle' => Motorcycle::class],
+                passDiscriminator: false
+            )
+        );
+        $context = $this->makeContext([$property]);
+
+        $stmts = $handler->generateHydration($property, $context);
+
+        $this->assertNotEmpty($stmts);
+        $nested = $context->getNestedTypes();
+        $this->assertContains(Vehicle::class, $nested);
+        $this->assertContains(Car::class, $nested);
+        $this->assertContains(Motorcycle::class, $nested);
+    }
+
     public function testMapOfGenerateHydrationNullableRequiredKeyBranch(): void
     {
         $handler = new MapOfTypeHandler(new ClassAnalyzer());
@@ -329,6 +417,77 @@ class ListAndMapTypeHandlerTest extends TestCase
         $this->assertNotEmpty($handler->generateHydration($property, $this->makeContext([$property])));
     }
 
+    public function testMapOfGenerateHydrationThrowsForInterfaceValueTypeWithoutDiscriminatorMapping(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeMapProperty(name: 'animals', valueType: LocalAnimal::class);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('interface value type');
+        $handler->generateHydration($property, $this->makeContext([$property]));
+    }
+
+    public function testMapOfGenerateHydrationThrowsWhenDiscriminatorOrMappingMissing(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $missingMapping = $this->makeMapProperty(
+            name: 'animals',
+            valueType: Vehicle::class,
+            mapOf: new MapOf(value: Vehicle::class, discriminator: 'type')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('discriminator and mapping must be set together');
+        $handler->generateHydration($missingMapping, $this->makeContext([$missingMapping]));
+    }
+
+    public function testMapOfGenerateHydrationThrowsWhenKeyTypeIsInvalid(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeMapProperty(
+            name: 'invalid',
+            valueType: 'int',
+            mapOf: new MapOf(key: 'bool', value: 'int')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('unsupported key type');
+        $handler->generateHydration($property, $this->makeContext([$property]));
+    }
+
+    public function testMapOfGenerateHydrationThrowsWhenValueTypeIsInvalid(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeMapProperty(
+            name: 'invalid',
+            valueType: 'integer',
+            mapOf: new MapOf(key: 'string', value: 'integer')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('unsupported value type');
+        $handler->generateHydration($property, $this->makeContext([$property]));
+    }
+
+    public function testMapOfGenerateHydrationThrowsWhenMappedTypeIsNotSubtypeOfValueType(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeMapProperty(
+            name: 'vehicles',
+            valueType: AddressDTO::class,
+            mapOf: new MapOf(
+                key: 'string',
+                value: AddressDTO::class,
+                discriminator: 'type',
+                mapping: ['car' => Car::class]
+            )
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('must be subtype');
+        $handler->generateHydration($property, $this->makeContext([$property]));
+    }
+
     public function testMapOfGenerateDehydrationSimpleScalarAndObjectBranches(): void
     {
         $handler = new MapOfTypeHandler(new ClassAnalyzer());
@@ -338,6 +497,23 @@ class ListAndMapTypeHandlerTest extends TestCase
 
         $this->assertNotEmpty($handler->generateDehydration($scalars, $this->makeContext([$scalars])));
         $this->assertNotEmpty($handler->generateDehydration($objects, $this->makeContext([$objects])));
+    }
+
+    public function testMapOfGenerateDehydrationDiscriminatorMappingBranch(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeMapProperty(
+            name: 'vehicles',
+            valueType: Vehicle::class,
+            mapOf: new MapOf(
+                value: Vehicle::class,
+                discriminator: 'type',
+                mapping: ['car' => Car::class, 'motorcycle' => Motorcycle::class],
+                passDiscriminator: true
+            )
+        );
+
+        $this->assertNotEmpty($handler->generateDehydration($property, $this->makeContext([$property])));
     }
 
     public function testMapOfGenerateDehydrationNullableScalarAndObjectBranches(): void
@@ -365,6 +541,77 @@ class ListAndMapTypeHandlerTest extends TestCase
 
         $this->assertNotEmpty($handler->generateDehydration($withoutFallback, $this->makeContext([$withoutFallback])));
         $this->assertNotEmpty($handler->generateDehydration($withFallback, $this->makeContext([$withFallback])));
+    }
+
+    public function testMapOfGenerateDehydrationThrowsForInterfaceValueTypeWithoutDiscriminatorMapping(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeMapProperty(name: 'animals', valueType: LocalAnimal::class);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('interface value type');
+        $handler->generateDehydration($property, $this->makeContext([$property]));
+    }
+
+    public function testMapOfGenerateDehydrationThrowsWhenDiscriminatorOrMappingMissing(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $missingMapping = $this->makeMapProperty(
+            name: 'animals',
+            valueType: Vehicle::class,
+            mapOf: new MapOf(value: Vehicle::class, discriminator: 'type')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('discriminator and mapping must be set together');
+        $handler->generateDehydration($missingMapping, $this->makeContext([$missingMapping]));
+    }
+
+    public function testMapOfGenerateDehydrationThrowsWhenKeyTypeIsInvalid(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeMapProperty(
+            name: 'invalid',
+            valueType: 'int',
+            mapOf: new MapOf(key: 'bool', value: 'int')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('unsupported key type');
+        $handler->generateDehydration($property, $this->makeContext([$property]));
+    }
+
+    public function testMapOfGenerateDehydrationThrowsWhenValueTypeIsInvalid(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeMapProperty(
+            name: 'invalid',
+            valueType: 'integer',
+            mapOf: new MapOf(key: 'string', value: 'integer')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('unsupported value type');
+        $handler->generateDehydration($property, $this->makeContext([$property]));
+    }
+
+    public function testMapOfGenerateDehydrationThrowsWhenMappedTypeIsNotSubtypeOfValueType(): void
+    {
+        $handler = new MapOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeMapProperty(
+            name: 'vehicles',
+            valueType: AddressDTO::class,
+            mapOf: new MapOf(
+                key: 'string',
+                value: AddressDTO::class,
+                discriminator: 'type',
+                mapping: ['car' => Car::class]
+            )
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('must be subtype');
+        $handler->generateDehydration($property, $this->makeContext([$property]));
     }
 
     /**

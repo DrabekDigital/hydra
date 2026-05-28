@@ -128,6 +128,18 @@ class Entry {
         #[MapOf(key: 'string', value: Person::class)]
         public readonly array $enemies,
 
+        #[MapOf(
+            key: 'string',
+            value: Vehicle::class,
+            discriminator: 'type',
+            passDiscriminator: false, // By default discriminator is passed to subtype constructor
+            mapping: [
+                VehicleType::Car->value => Car::class,
+                VehicleType::Truck->value => Truck::class,
+            ],
+        )]
+        public readonly array $fleetById,
+
         #[ListOf(
             discriminator: 'type',
             passDiscriminator: false, // By default discriminator is passed to subtype constructor
@@ -143,6 +155,8 @@ class Entry {
 ```
 
 > **ArrayOf note:** `ArrayOf` supports scalar item types (`string`, `int`, `float`, `bool`, `null`, `mixed`), scalar unions without spaces (for example `string|int|null`), and object class names. Invalid type declarations fail fast during hydrator/dehydrator generation. `array` is not supported as an `ArrayOf` item type.
+>
+> **MapOf note:** `MapOf` supports the same discriminator setup as `ListOf` (`discriminator`, `mapping`, `passDiscriminator`) for polymorphic value hydration/dehydration. Invalid combinations (for example only one of `discriminator`/`mapping`, or interface value type without discriminator mapping) fail fast during hydrator/dehydrator generation.
 
 ## Objects
 

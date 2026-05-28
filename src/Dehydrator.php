@@ -252,6 +252,15 @@ class Dehydrator
                 $nestedDehydrator = $this->getDehydrator($mapOf->value, $bypassCache);
                 $dehydrator->setNestedDehydrator($mapOf->value, $nestedDehydrator);
             }
+            if ($mapOf !== null && $mapOf->mapping !== null) {
+                foreach ($mapOf->mapping as $mappedClass) {
+                    if (!class_exists($mappedClass)) {
+                        throw new \RuntimeException("Mapped class {$mappedClass} does not exist");
+                    }
+                    $nestedDehydrator = $this->getDehydrator($mappedClass, $bypassCache);
+                    $dehydrator->setNestedDehydrator($mappedClass, $nestedDehydrator);
+                }
+            }
 
             $objectType = $property->getAttribute(ObjectType::class);
             if ($objectType !== null && $objectType->value !== null && $this->analyzer->isObjectType($objectType->value)) {

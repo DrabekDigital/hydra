@@ -6,6 +6,7 @@ namespace DrabekDigital\Hydra\Tests\Feature;
 
 use DrabekDigital\Hydra\Exceptions\HydrationFailure;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\DiscriminatedGarageDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\DiscriminatedGarageMapDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\DiscriminatedGaragePassThroughDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\DiscriminatedGaragePassThroughSuccessDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Objects\Car;
@@ -82,5 +83,36 @@ class DiscriminatorAttributesTest extends TestCase
         $this->assertInstanceOf(TypedMotorcycle::class, $dto->vehicles[1]);
         $this->assertSame('car', $dto->vehicles[0]->type);
         $this->assertSame('motorcycle', $dto->vehicles[1]->type);
+    }
+
+    public function testMapOfHydratesDiscriminatedSubtypes(): void
+    {
+        $dto = $this->hydrator->hydrate([
+            'vehicles' => [
+                'first' => ['type' => 'car', 'brand' => 'Toyota', 'year' => 2020, 'doors' => 4],
+                'second' => ['type' => 'motorcycle', 'brand' => 'Honda', 'year' => 2019, 'engineCC' => 750],
+            ],
+        ], DiscriminatedGarageMapDTO::class);
+
+        $this->assertInstanceOf(Car::class, $dto->vehicles['first']);
+        $this->assertInstanceOf(Motorcycle::class, $dto->vehicles['second']);
+    }
+
+    public function testMapOfDehydrateAddsDiscriminatorKey(): void
+    {
+        $dto = new DiscriminatedGarageMapDTO(
+            vehicles: [
+                'first' => new Car('Toyota', 2020, 4),
+                'second' => new Motorcycle('Honda', 2019, 750),
+            ]
+        );
+
+        $result = $this->dehydrator->dehydrate($dto);
+
+        $this->assertIsArray($result['vehicles']);
+        $this->assertIsArray($result['vehicles']['first']);
+        $this->assertIsArray($result['vehicles']['second']);
+        $this->assertSame('car', $result['vehicles']['first']['type']);
+        $this->assertSame('motorcycle', $result['vehicles']['second']['type']);
     }
 }
