@@ -83,9 +83,32 @@ final class ArrayOfTypeHandler implements TypeHandler
      */
     public function generateDehydration(PropertyMetadata $property, GenerationContext $context): array
     {
-        $outputKey = $context->outputKey($property->name);
+        $name = $property->name;
+        $outputKey = $context->outputKey($name);
+        $attr = $property->getAttribute(ArrayOf::class);
+        if (!$attr instanceof ArrayOf) {
+            throw new \InvalidArgumentException("Missing ArrayOf attribute for '{$name}'");
+        }
 
-        return [HydraAst::assignResult($outputKey, HydraAst::objectProperty($property->name))];
+        $itemType = $attr->type;
+        $isObjectType = $this->analyzer->isObjectType($itemType);
+        $path = HydraAst::pathExpr($name);
+
+        if ($property->isUndefinable) {
+            return $this->generateUndefinableDehydration($property, $name, $outputKey, $itemType, $isObjectType, $path, $context);
+        }
+
+        if ($property->isNullable) {
+            return [
+                Ast::if(
+                    Ast::identical(HydraAst::objectProperty($name), Ast::null()),
+                    [HydraAst::assignResult($outputKey, Ast::null())],
+                    $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $path),
+                ),
+            ];
+        }
+
+        return $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $path);
     }
 
     /**
@@ -194,6 +217,121 @@ final class ArrayOfTypeHandler implements TypeHandler
                 Ast::var($arrayKeyVar),
             ),
             HydraAst::assignArg($name, Ast::var("result_{$name}")),
+        ];
+    }
+
+    /**
+     * @return list<Stmt>
+     */
+    private function generateDehydrationValidationStmts(
+        string $name,
+        string $outputKey,
+        string $itemType,
+        bool $isObjectType,
+        Expr $pathExpr,
+    ): array {
+        $itemPathVar = "dehydrateItemPath_{$name}";
+        $arrayKeyVar = "dehydrateArrayKey_{$name}";
+        $resultVar = "dehydrateResult_{$name}";
+
+        if ($isObjectType) {
+            $itemTypeCheck = Ast::funcCall('is_a', [Ast::var('item'), Ast::classConst($itemType, 'class')]);
+        } else {
+            $itemTypeCheck = HydraAst::scalarTypeCheck(Ast::var('item'), $itemType);
+        }
+
+        if ($itemTypeCheck === null) {
+            return [HydraAst::assignResult($outputKey, HydraAst::objectProperty($name))];
+        }
+
+        return [
+            Ast::if(
+                Ast::not(Ast::funcCall('is_array', [HydraAst::objectProperty($name)])),
+                [HydraAst::appendDehydrationError(
+                    'TYPE_MISMATCH',
+                    Ast::concat(
+                        Ast::string("Expected array for '{$name}', got "),
+                        Ast::funcCall('gettype', [HydraAst::objectProperty($name)])
+                    ),
+                    $name,
+                    $pathExpr
+                )],
+                [
+                    Ast::expr(Ast::assign(Ast::var($resultVar), Ast::array([]))),
+                    Ast::foreach(
+                        HydraAst::objectProperty($name),
+                        Ast::var('item'),
+                        [
+                            Ast::expr(Ast::assign(
+                                Ast::var($itemPathVar),
+                                Ast::funcCall('sprintf', [Ast::string('%s[%s]'), $pathExpr, Ast::var($arrayKeyVar)])
+                            )),
+                            Ast::if(
+                                Ast::not($itemTypeCheck),
+                                [HydraAst::appendDehydrationError(
+                                    'TYPE_MISMATCH',
+                                    Ast::concat(
+                                        Ast::string("Expected {$itemType} item for '{$name}', got "),
+                                        Ast::funcCall('gettype', [Ast::var('item')])
+                                    ),
+                                    Ast::var($arrayKeyVar),
+                                    Ast::var($itemPathVar)
+                                )],
+                                [
+                                    Ast::expr(Ast::assign(
+                                        Ast::arrayAccess(Ast::var($resultVar), Ast::var($arrayKeyVar)),
+                                        Ast::var('item')
+                                    )),
+                                ]
+                            ),
+                        ],
+                        Ast::var($arrayKeyVar),
+                    ),
+                    HydraAst::assignResult($outputKey, Ast::var($resultVar)),
+                ]
+            ),
+        ];
+    }
+
+    /**
+     * @return list<Stmt>
+     */
+    private function generateUndefinableDehydration(
+        PropertyMetadata $property,
+        string $name,
+        string $outputKey,
+        string $itemType,
+        bool $isObjectType,
+        Expr $pathExpr,
+        GenerationContext $context,
+    ): array {
+        $refProp = Ast::assign(
+            Ast::var("ref_{$name}"),
+            Ast::new('\ReflectionProperty', [
+                Ast::classConst($context->shortName, 'class'),
+                Ast::string($name),
+            ])
+        );
+
+        $isInitialized = Ast::methodCall(Ast::var("ref_{$name}"), 'isInitialized', [Ast::var('object')]);
+        $thenStmts = $property->isNullable
+            ? [
+                Ast::if(
+                    Ast::identical(HydraAst::objectProperty($name), Ast::null()),
+                    [HydraAst::assignResult($outputKey, Ast::null())],
+                    $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $pathExpr),
+                ),
+            ]
+            : $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $pathExpr);
+
+        $elseStmts = null;
+        if ($property->undefinableOnDehydrationWhen !== null) {
+            $elseStmts = [HydraAst::assignResult($outputKey, Ast::toExpr($property->undefinableOnDehydrationWhen))];
+        }
+
+        return [
+            Ast::expr($refProp),
+            Ast::if($isInitialized, $thenStmts, $elseStmts),
         ];
     }
 }

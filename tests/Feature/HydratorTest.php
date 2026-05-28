@@ -341,7 +341,7 @@ class HydratorTest extends TestCase
     {
         try {
             $this->hydrator->hydrate(
-                ['strings' => ['valid', 123], 'ints' => [1, 2, 3]],
+                ['strings' => ['foo', 1], 'ints' => [1, 2, 3]],
                 ScalarListDTO::class
             );
             $this->fail('Expected HydrationFailure was not thrown');
@@ -351,6 +351,23 @@ class HydratorTest extends TestCase
             $this->assertSame('type_mismatch', $errors[0]->code->value);
             $this->assertSame(1, $errors[0]->key);
             $this->assertSame('strings[1]', $errors[0]->fullPath);
+        }
+    }
+
+    public function testArrayOfScalarsFailsOnInvalidItemType(): void
+    {
+        try {
+            $this->hydrator->hydrate(
+                ['tags' => ['foo', 1], 'scores' => ['a' => 10, 'b' => 20]],
+                ArrayAndMapDTO::class
+            );
+            $this->fail('Expected HydrationFailure was not thrown');
+        } catch (HydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('type_mismatch', $errors[0]->code->value);
+            $this->assertSame(1, $errors[0]->key);
+            $this->assertSame('tags[1]', $errors[0]->fullPath);
         }
     }
 

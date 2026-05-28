@@ -317,9 +317,9 @@ final class MapOfTypeHandler implements TypeHandler
      */
     private function generateDehydrateLoop(string $name, string $outputKey, string $valueType, bool $isObjectType): array
     {
-        if ($isObjectType) {
-            $path = HydraAst::pathExpr($name);
+        $path = HydraAst::pathExpr($name);
 
+        if ($isObjectType) {
             return [
                 Ast::expr(Ast::assign(Ast::var("result_{$name}"), Ast::array([]))),
                 Ast::foreach(
@@ -341,7 +341,54 @@ final class MapOfTypeHandler implements TypeHandler
             ];
         }
 
-        return [HydraAst::assignResult($outputKey, HydraAst::objectProperty($name))];
+        $check = HydraAst::scalarTypeCheck(Ast::var('item'), $valueType);
+        if ($check === null) {
+            return [HydraAst::assignResult($outputKey, HydraAst::objectProperty($name))];
+        }
+
+        return [
+            Ast::if(
+                Ast::not(Ast::funcCall('is_array', [HydraAst::objectProperty($name)])),
+                [HydraAst::appendDehydrationError(
+                    'TYPE_MISMATCH',
+                    Ast::concat(
+                        Ast::string("Expected array for '{$name}', got "),
+                        Ast::funcCall('gettype', [HydraAst::objectProperty($name)])
+                    ),
+                    $name,
+                    $path
+                )],
+                [
+                    Ast::expr(Ast::assign(Ast::var("result_{$name}"), Ast::array([]))),
+                    Ast::foreach(
+                        HydraAst::objectProperty($name),
+                        Ast::var('item'),
+                        [
+                            Ast::if(
+                                Ast::not($check),
+                                [HydraAst::appendDehydrationError(
+                                    'TYPE_MISMATCH',
+                                    Ast::concat(
+                                        Ast::string("Expected {$valueType} value for '{$name}', got "),
+                                        Ast::funcCall('gettype', [Ast::var('item')])
+                                    ),
+                                    Ast::var("mapKey_{$name}"),
+                                    Ast::funcCall('sprintf', [Ast::string('%s.%s'), $path, Ast::var("mapKey_{$name}")])
+                                )],
+                                [
+                                    Ast::expr(Ast::assign(
+                                        Ast::arrayAccess(Ast::var("result_{$name}"), Ast::var("mapKey_{$name}")),
+                                        Ast::var('item')
+                                    )),
+                                ]
+                            ),
+                        ],
+                        Ast::var("mapKey_{$name}")
+                    ),
+                    HydraAst::assignResult($outputKey, Ast::var("result_{$name}")),
+                ]
+            ),
+        ];
     }
 
     /**
@@ -349,24 +396,11 @@ final class MapOfTypeHandler implements TypeHandler
      */
     private function generateNullableDehydration(string $name, string $outputKey, string $valueType, bool $isObjectType): array
     {
-        if ($isObjectType) {
-            return [
-                Ast::if(
-                    Ast::identical(HydraAst::objectProperty($name), Ast::null()),
-                    [HydraAst::assignResult($outputKey, Ast::null())],
-                    $this->generateDehydrateLoop($name, $outputKey, $valueType, $isObjectType)
-                ),
-            ];
-        }
-
         return [
-            HydraAst::assignResult(
-                $outputKey,
-                Ast::ternary(
-                    Ast::notIdentical(HydraAst::objectProperty($name), Ast::null()),
-                    HydraAst::objectProperty($name),
-                    Ast::null()
-                )
+            Ast::if(
+                Ast::identical(HydraAst::objectProperty($name), Ast::null()),
+                [HydraAst::assignResult($outputKey, Ast::null())],
+                $this->generateDehydrateLoop($name, $outputKey, $valueType, $isObjectType)
             ),
         ];
     }

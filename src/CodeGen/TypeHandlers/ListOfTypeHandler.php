@@ -332,8 +332,56 @@ final class ListOfTypeHandler implements TypeHandler
             ];
         }
 
-        // For scalars, just assign directly
-        return [HydraAst::assignResult($outputKey, HydraAst::objectProperty($name))];
+        $check = HydraAst::scalarTypeCheck(Ast::var('item'), $itemType);
+        if ($check === null) {
+            return [HydraAst::assignResult($outputKey, HydraAst::objectProperty($name))];
+        }
+
+        return [
+            Ast::if(
+                Ast::not(Ast::funcCall('is_array', [HydraAst::objectProperty($name)])),
+                [HydraAst::appendDehydrationError(
+                    'TYPE_MISMATCH',
+                    Ast::concat(
+                        Ast::string("Expected array for '{$name}', got "),
+                        Ast::funcCall('gettype', [HydraAst::objectProperty($name)])
+                    ),
+                    $name,
+                    $pathExpr
+                )],
+                [
+                    Ast::expr(Ast::assign(Ast::var("result_{$name}"), Ast::array([]))),
+                    Ast::expr(Ast::assign(Ast::var("i_{$name}"), Ast::int(0))),
+                    Ast::foreach(
+                        HydraAst::objectProperty($name),
+                        Ast::var('item'),
+                        [
+                            Ast::if(
+                                Ast::not($check),
+                                [HydraAst::appendDehydrationError(
+                                    'TYPE_MISMATCH',
+                                    Ast::concat(
+                                        Ast::string("Expected {$itemType} item for '{$name}', got "),
+                                        Ast::funcCall('gettype', [Ast::var('item')])
+                                    ),
+                                    Ast::var("i_{$name}"),
+                                    Ast::funcCall('sprintf', [Ast::string('%s[%d]'), $pathExpr, Ast::var("i_{$name}")])
+                                )],
+                                [
+                                    Ast::expr(Ast::assign(
+                                        Ast::arrayAccess(Ast::var("result_{$name}"), null),
+                                        Ast::var('item')
+                                    )),
+                                ]
+                            ),
+                            Ast::expr(new PostInc(Ast::var("i_{$name}"))),
+                        ],
+                        null
+                    ),
+                    HydraAst::assignResult($outputKey, Ast::var("result_{$name}")),
+                ]
+            ),
+        ];
     }
 
     /**
@@ -591,24 +639,11 @@ final class ListOfTypeHandler implements TypeHandler
     {
         $path = HydraAst::pathExpr($name);
 
-        if ($isObjectType) {
-            return [
-                Ast::if(
-                    Ast::identical(HydraAst::objectProperty($name), Ast::null()),
-                    [HydraAst::assignResult($outputKey, Ast::null())],
-                    $this->generateDehydrateLoop($name, $outputKey, $itemType, $isObjectType, $path, $attr)
-                ),
-            ];
-        }
-
         return [
-            HydraAst::assignResult(
-                $outputKey,
-                Ast::ternary(
-                    Ast::notIdentical(HydraAst::objectProperty($name), Ast::null()),
-                    HydraAst::objectProperty($name),
-                    Ast::null()
-                )
+            Ast::if(
+                Ast::identical(HydraAst::objectProperty($name), Ast::null()),
+                [HydraAst::assignResult($outputKey, Ast::null())],
+                $this->generateDehydrateLoop($name, $outputKey, $itemType, $isObjectType, $path, $attr)
             ),
         ];
     }

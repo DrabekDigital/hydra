@@ -194,6 +194,19 @@ class DehydratorTest extends TestCase
         ]);
     }
 
+    public function testDehydratesMapOfScalarsExplicitly(): void
+    {
+        $dto = new ArrayAndMapDTO(
+            tags: ['php'],
+            scores: ['alpha' => 100, 'beta' => 200]
+        );
+
+        $this->assertDehydrates($dto, [
+            'tags' => ['php'],
+            'scores' => ['alpha' => 100, 'beta' => 200],
+        ]);
+    }
+
     public function testDehydratesMapOfWithObjectValues(): void
     {
         $dto = new ObjectMapDTO(

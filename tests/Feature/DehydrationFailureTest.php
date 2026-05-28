@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace DrabekDigital\Hydra\Tests\Feature;
 
 use DrabekDigital\Hydra\Exceptions\DehydrationFailure;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayAndMapDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\DiscriminatedGarageDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\FailingFormatterDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\FailingMapperDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\MapperExceptionDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\NoConstructorDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ScalarListDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Objects\Car;
 use DrabekDigital\Hydra\Tests\TestCase;
 
@@ -196,6 +198,69 @@ class DehydrationFailureTest extends TestCase
             $this->assertSame('type_mismatch', $errors[0]->code->value);
             $this->assertNull($errors[0]->key);
             $this->assertStringContainsString('get_class', $errors[0]->programmerMessage);
+        }
+    }
+
+    public function testListOfScalarItemMismatchFailsDuringDehydration(): void
+    {
+        $reflection = new \ReflectionClass(ScalarListDTO::class);
+        $dto = $reflection->newInstanceArgs([
+            ['foo', 1],
+            [1, 2, 3],
+        ]);
+        $this->assertInstanceOf(ScalarListDTO::class, $dto);
+
+        try {
+            $this->dehydrator->dehydrate($dto);
+            $this->fail('Expected DehydrationFailure was not thrown');
+        } catch (DehydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('type_mismatch', $errors[0]->code->value);
+            $this->assertSame(1, $errors[0]->key);
+            $this->assertSame('strings[1]', $errors[0]->fullPath);
+        }
+    }
+
+    public function testArrayOfScalarItemMismatchFailsDuringDehydration(): void
+    {
+        $reflection = new \ReflectionClass(ArrayAndMapDTO::class);
+        $dto = $reflection->newInstanceArgs([
+            ['foo', 1],
+            ['a' => 10, 'b' => 20],
+        ]);
+        $this->assertInstanceOf(ArrayAndMapDTO::class, $dto);
+
+        try {
+            $this->dehydrator->dehydrate($dto);
+            $this->fail('Expected DehydrationFailure was not thrown');
+        } catch (DehydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('type_mismatch', $errors[0]->code->value);
+            $this->assertSame(1, $errors[0]->key);
+            $this->assertSame('tags[1]', $errors[0]->fullPath);
+        }
+    }
+
+    public function testMapOfScalarValueMismatchFailsDuringDehydration(): void
+    {
+        $reflection = new \ReflectionClass(ArrayAndMapDTO::class);
+        $dto = $reflection->newInstanceArgs([
+            ['foo', 'bar'],
+            ['a' => 10, 'b' => 'oops'],
+        ]);
+        $this->assertInstanceOf(ArrayAndMapDTO::class, $dto);
+
+        try {
+            $this->dehydrator->dehydrate($dto);
+            $this->fail('Expected DehydrationFailure was not thrown');
+        } catch (DehydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('type_mismatch', $errors[0]->code->value);
+            $this->assertSame('b', $errors[0]->key);
+            $this->assertSame('scores.b', $errors[0]->fullPath);
         }
     }
 }
