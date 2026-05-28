@@ -7,6 +7,8 @@ use DrabekDigital\Hydra\Attributes\CustomFormatter;
 // PHP attributes require constant expressions as arguments.
 // Arrow functions (fn() =>) are NOT valid, but static function() {} IS.
 // First-class callables (ClassName::method(...)) also work.
+// Cache invalidation for closure-based formatters uses a best-effort fingerprint
+// (source slice + scope + static variables) and is not fully reliable in all runtimes.
 
 final class Money
 {

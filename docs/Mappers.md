@@ -329,6 +329,8 @@ class Money {
 ```
 
 > **Note:** PHP attribute arguments must be constant expressions. Arrow functions (`fn() =>`) are **not** valid — use `static function() {}` instead. First-class callables (`ClassName::method(...)`) also work.
+>
+> **Cache note:** For closure-based formatters, Hydra uses a best-effort closure fingerprint for structure-hash invalidation (source slice + scope + static variables). It is heuristic and may not be fully reliable in all runtimes (for example dynamically generated/eval-ed closures). If you need deterministic invalidation, prefer class-based custom mappers.
 
 Limitation of this approach is that you cannot check nor return any errors. Note that for custom formatters, throwing exceptions is not a supported pattern — use a custom mapper instead if you need controlled error propagation via `MapperException`.
 

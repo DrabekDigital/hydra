@@ -23,6 +23,10 @@ use DrabekDigital\Hydra\Tests\Fixtures\Dto\NullableDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\PersonDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ProductDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\SimpleDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\StructureHashDateTimeRangeMin1900DTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\StructureHashDateTimeRangeMin2000DTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\StructureHashFormatterLowerTrimDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\StructureHashFormatterTrimDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\StructureHashNoDefaultDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\StructureHashNoNamingStrategyDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\StructureHashOrderFirstDTO;
@@ -328,6 +332,30 @@ class ClassAnalyzerTest extends TestCase
         $this->assertNotSame($hash1, $hash2);
     }
 
+    public function testStructureHashDiffersWhenUndefinablePolicyChanges(): void
+    {
+        $hashSkip = $this->analyzer->getStructureHash(UndefinableDTO::class);
+        $hashAsNull = $this->analyzer->getStructureHash(UndefinableAsNullDTO::class);
+
+        $this->assertNotSame($hashSkip, $hashAsNull);
+    }
+
+    public function testStructureHashDiffersWhenDateTimeAttributeValueChanges(): void
+    {
+        $hash1900 = $this->analyzer->getStructureHash(StructureHashDateTimeRangeMin1900DTO::class);
+        $hash2000 = $this->analyzer->getStructureHash(StructureHashDateTimeRangeMin2000DTO::class);
+
+        $this->assertNotSame($hash1900, $hash2000);
+    }
+
+    public function testStructureHashDiffersWhenClosureFormatterBodyChanges(): void
+    {
+        $trimHash = $this->analyzer->getStructureHash(StructureHashFormatterTrimDTO::class);
+        $lowerTrimHash = $this->analyzer->getStructureHash(StructureHashFormatterLowerTrimDTO::class);
+
+        $this->assertNotSame($trimHash, $lowerTrimHash);
+    }
+
     public function testStructureHashDiffersWhenClassLevelAttributesChange(): void
     {
         $hash1 = $this->analyzer->getStructureHash(NamingStrategyClaimDTO::class);
@@ -448,7 +476,7 @@ class ClassAnalyzerTest extends TestCase
         $enumResult = $method->invoke($this->analyzer, Status::Published);
         $objectResult = $method->invoke($this->analyzer, new \stdClass());
 
-        $this->assertSame(Status::class.'::'.Status::Published->value, $enumResult);
-        $this->assertSame(\stdClass::class, $objectResult);
+        $this->assertSame(json_encode(Status::class.'::'.Status::Published->value), $enumResult);
+        $this->assertSame(json_encode(\stdClass::class), $objectResult);
     }
 }

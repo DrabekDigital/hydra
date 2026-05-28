@@ -345,13 +345,7 @@ class ClassAnalyzer
 
         foreach ($reflection->getProperties() as $prop) {
             if ($prop->isInitialized($attribute)) {
-                $value = $prop->getValue($attribute);
-                // Handle closures by converting to a marker
-                if ($value instanceof \Closure) {
-                    $data[$prop->getName()] = '__closure__';
-                } else {
-                    $data[$prop->getName()] = $value;
-                }
+                $data[$prop->getName()] = $prop->getValue($attribute);
             }
         }
 
@@ -360,14 +354,88 @@ class ClassAnalyzer
 
     private function serializeValue(mixed $value): string
     {
-        if (is_object($value)) {
-            if ($value instanceof \BackedEnum) {
-                return $value::class.'::'.$value->value;
+        $normalized = $this->normalizeValue($value);
+        $json = json_encode($normalized);
+
+        if ($json === false) {
+            throw new \RuntimeException('Failed to encode structure value.');
+        }
+
+        return $json;
+    }
+
+    private function normalizeValue(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            $normalized = [];
+            foreach ($value as $key => $item) {
+                $normalized[(string) $key] = $this->normalizeValue($item);
             }
 
+            return $normalized;
+        }
+
+        if ($value instanceof \BackedEnum) {
+            return $value::class.'::'.$value->value;
+        }
+
+        if ($value instanceof \UnitEnum) {
+            return $value::class.'::'.$value->name;
+        }
+
+        if ($value instanceof \Closure) {
+            return $this->createClosureFingerprint($value);
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return [
+                'class' => $value::class,
+                'value' => $value->format('Y-m-d\TH:i:s.uP'),
+                'timezone' => $value->getTimezone()->getName(),
+            ];
+        }
+
+        if ($value instanceof \DateTimeZone) {
+            return [
+                'class' => $value::class,
+                'value' => $value->getName(),
+            ];
+        }
+
+        if (is_object($value)) {
             return $value::class;
         }
 
-        return json_encode($value) ?: 'null';
+        return $value;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function createClosureFingerprint(\Closure $closure): array
+    {
+        $reflection = new \ReflectionFunction($closure);
+        $sourceHash = null;
+        $file = $reflection->getFileName();
+        $startLine = $reflection->getStartLine();
+        $endLine = $reflection->getEndLine();
+
+        if (is_string($file) && is_file($file) && $startLine > 0 && $endLine >= $startLine) {
+            $lines = file($file, FILE_IGNORE_NEW_LINES);
+            if (is_array($lines)) {
+                $slice = array_slice($lines, $startLine - 1, $endLine - $startLine + 1);
+                $sourceHash = hash('sha256', implode("\n", $slice));
+            }
+        }
+
+        return [
+            'type' => 'closure',
+            'sourceHash' => $sourceHash ?? 'unavailable',
+            'startLine' => $startLine,
+            'endLine' => $endLine,
+            'scopeClass' => $reflection->getClosureScopeClass()?->getName(),
+            'boundClass' => $reflection->getClosureThis() !== null ? get_class($reflection->getClosureThis()) : null,
+            'staticVariables' => $this->normalizeValue($reflection->getStaticVariables()),
+        ];
     }
 }
