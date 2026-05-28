@@ -87,11 +87,12 @@ class NumberRangeRuleTest extends TestCase
         $this->assertEmpty($rule->validate(5, 'x', 'x'));
     }
 
-    public function testBothBoundsViolatedProducesTwoErrors(): void
+    public function testCrossedMinMaxRangeIsRejectedAtConstruction(): void
     {
-        // min=5, max=3 is a silly config but the rule still collects both
-        $rule = new NumberRangeRule(new NumberRange(min: 5, max: 3));
-        $this->assertCount(2, $rule->validate(4, 'x', 'x'));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('min must not be greater than max');
+
+        new NumberRange(min: 5, max: 3);
     }
 
     public function testFloatValueIsSupported(): void

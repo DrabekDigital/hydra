@@ -22,4 +22,38 @@ final class RangeBounds
             ));
         }
     }
+
+    public static function assertInclusiveIntRange(?int $min, ?int $max): void
+    {
+        if ($min !== null && $max !== null && $min > $max) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid range: min (%d) must not be greater than max (%d)',
+                $min,
+                $max,
+            ));
+        }
+    }
+
+    public static function assertOrderedRange(
+        \DateTimeInterface|float|int|null $min,
+        \DateTimeInterface|float|int|null $max,
+        string $bounds,
+    ): void {
+        if ($min === null || $max === null) {
+            return;
+        }
+
+        $comparison = $min <=> $max;
+
+        if ($comparison > 0) {
+            throw new \InvalidArgumentException('Invalid range: min must not be greater than max');
+        }
+
+        if ($comparison === 0 && $bounds !== '[]') {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid range: min equals max with bounds "%s" defines an empty interval',
+                $bounds,
+            ));
+        }
+    }
 }

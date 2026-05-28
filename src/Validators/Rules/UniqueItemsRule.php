@@ -19,6 +19,19 @@ final class UniqueItemsRule
      */
     public function validate(array $value, string $key, string $fullPath): array
     {
+        if ($this->rule->comparator === null) {
+            foreach ($value as $item) {
+                if ($this->containsNonNativelyComparableValue($item)) {
+                    return [new ValidationError(
+                        code: ValidationErrorCode::UNIQUE_ITEMS_COMPARATOR_REQUIRED,
+                        programmerMessage: "Array '{$key}' contains values that require a UniqueItems comparator",
+                        key: $key,
+                        fullPath: $fullPath,
+                    )];
+                }
+            }
+        }
+
         $comparator = $this->rule->comparator;
         $count = count($value);
 
@@ -40,5 +53,28 @@ final class UniqueItemsRule
         }
 
         return [];
+    }
+
+    private function containsNonNativelyComparableValue(mixed $item): bool
+    {
+        if ($item instanceof \UnitEnum) {
+            return false;
+        }
+
+        if (is_object($item) || is_resource($item)) {
+            return true;
+        }
+
+        if (!is_array($item)) {
+            return false;
+        }
+
+        foreach ($item as $nested) {
+            if ($this->containsNonNativelyComparableValue($nested)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -49,11 +49,12 @@ class LengthRangeRuleTest extends TestCase
         $this->assertSame('too_long', $errors[0]->code->value);
     }
 
-    public function testBothBoundsViolatedProducesTwoErrors(): void
+    public function testCrossedMinMaxRangeIsRejectedAtConstruction(): void
     {
-        // max < min is nonsense but still collects both violations
-        $rule = new LengthRangeRule(new LengthRange(min: 10, max: 2));
-        $this->assertCount(2, $rule->validate('hello', 'x', 'x'));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('min (10) must not be greater than max (2)');
+
+        new LengthRange(min: 10, max: 2);
     }
 
     public function testMultibyteCharactersCountedCorrectly(): void

@@ -57,11 +57,12 @@ class CountRuleTest extends TestCase
         $this->assertSame('count_too_low', $errors[0]->code->value);
     }
 
-    public function testBothViolationsCollected(): void
+    public function testCrossedMinMaxRangeIsRejectedAtConstruction(): void
     {
-        // max < min is nonsensical but both violations are reported
-        $rule = new CountRule(new Count(min: 5, max: 1));
-        $this->assertCount(2, $rule->validate([1, 2, 3], 'x', 'x'));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('min (5) must not be greater than max (1)');
+
+        new Count(min: 5, max: 1);
     }
 
     public function testKeyAndPathArePreservedInError(): void

@@ -8,9 +8,11 @@ use DrabekDigital\Hydra\Validators\Validator;
 
 /**
  * Specifies a custom validator class for a property.
+ *
+ * Consider implementing {@see ValidationConstraint} on your own attribute instead.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_PARAMETER)]
-final class CustomValidator
+final class CustomValidator implements ValidationConstraint
 {
     /**
      * @param class-string<Validator> $validator
@@ -18,4 +20,9 @@ final class CustomValidator
     public function __construct(
         public readonly string $validator,
     ) {}
+
+    public function validatorClass(): string
+    {
+        return $this->validator;
+    }
 }

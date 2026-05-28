@@ -74,11 +74,12 @@ class DateTimeRangeRuleTest extends TestCase
         $this->assertCount(1, $errors);
     }
 
-    public function testBothBoundsViolatedProducesTwoErrors(): void
+    public function testCrossedMinMaxRangeIsRejectedAtConstruction(): void
     {
-        // min > max is nonsensical but both violations are reported
-        $rule = new DateTimeRangeRule(new DateTimeRange(min: $this->future, max: $this->past));
-        $this->assertCount(2, $rule->validate($this->now, 'x', 'x'));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('min must not be greater than max');
+
+        new DateTimeRange(min: $this->future, max: $this->past);
     }
 
     public function testKeyAndPathArePreservedInError(): void

@@ -8,7 +8,7 @@ namespace DrabekDigital\Hydra\Attributes\Validation;
  * Validates that a string is a valid URL.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_PARAMETER)]
-final class URL
+final class URL implements TypedValidationAttribute
 {
     /**
      * @param null|list<string> $allowedSchemes
@@ -16,5 +16,16 @@ final class URL
     public function __construct(
         public readonly bool $requireScheme = true,
         public readonly ?array $allowedSchemes = ['http', 'https'],
+        public readonly NullValidationBehavior $onNull = NullValidationBehavior::SkipWhenNull,
     ) {}
+
+    public function supportedValueTypes(): array
+    {
+        return [ValidationValueType::String];
+    }
+
+    public function nullBehavior(): NullValidationBehavior
+    {
+        return $this->onNull;
+    }
 }

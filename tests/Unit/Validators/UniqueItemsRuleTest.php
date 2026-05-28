@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DrabekDigital\Hydra\Tests\Unit\Validators;
 
 use DrabekDigital\Hydra\Attributes\Validation\UniqueItems;
+use DrabekDigital\Hydra\Tests\Fixtures\Validators\IdentifiableObject;
 use DrabekDigital\Hydra\Validators\Rules\UniqueItemsRule;
 use PHPUnit\Framework\TestCase;
 
@@ -130,5 +131,38 @@ class UniqueItemsRuleTest extends TestCase
         $rule = new UniqueItemsRule(new UniqueItems());
         $this->assertCount(1, $rule->validate([true, true], 'x', 'x'));
         $this->assertEmpty($rule->validate([true, false], 'x', 'x'));
+    }
+
+    public function testObjectsWithoutComparatorFailEvenWhenAllInstancesAreUnique(): void
+    {
+        $rule = new UniqueItemsRule(new UniqueItems());
+        $errors = $rule->validate([new \stdClass(), new \stdClass()], 'items', 'payload.items');
+
+        $this->assertCount(1, $errors);
+        $this->assertSame('unique_items_comparator_required', $errors[0]->code->value);
+        $this->assertSame('items', $errors[0]->key);
+        $this->assertSame('payload.items', $errors[0]->fullPath);
+    }
+
+    public function testNestedObjectWithoutComparatorFails(): void
+    {
+        $rule = new UniqueItemsRule(new UniqueItems());
+        $errors = $rule->validate([['id' => new \stdClass()], ['id' => new \stdClass()]], 'x', 'x');
+
+        $this->assertCount(1, $errors);
+        $this->assertSame('unique_items_comparator_required', $errors[0]->code->value);
+    }
+
+    public function testObjectsWithComparatorCanDetectDuplicates(): void
+    {
+        $a = new IdentifiableObject(1);
+        $b = new IdentifiableObject(1);
+
+        $rule = new UniqueItemsRule(new UniqueItems(
+            comparator: static fn (IdentifiableObject $left, IdentifiableObject $right): bool => $left->id === $right->id,
+        ));
+
+        $this->assertCount(1, $rule->validate([$a, $b], 'x', 'x'));
+        $this->assertEmpty($rule->validate([$a, new IdentifiableObject(2)], 'x', 'x'));
     }
 }
