@@ -44,6 +44,9 @@ class Person
 }
 ```
 
+> **Important:** `#[Undefinable]` and `#[DefaultValue(...)]` are conceptually conflicting and should not be combined on the same property/parameter.
+> If both are present, hydration follows the `Undefinable` branch (missing key keeps property uninitialized), so `DefaultValue` is effectively ignored for missing input keys.
+
 ## Special types
 
 ```php
