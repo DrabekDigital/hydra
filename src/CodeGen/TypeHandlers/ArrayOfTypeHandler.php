@@ -18,6 +18,9 @@ use PhpParser\Node\Stmt;
  */
 final class ArrayOfTypeHandler implements TypeHandler
 {
+    /** @var list<string> */
+    private const SUPPORTED_SCALAR_TYPES = ['string', 'int', 'float', 'bool', 'null', 'mixed'];
+
     public function __construct(
         private readonly ClassAnalyzer $analyzer,
     ) {}
@@ -45,21 +48,28 @@ final class ArrayOfTypeHandler implements TypeHandler
             throw new \InvalidArgumentException("Missing ArrayOf attribute for '{$name}'");
         }
 
-        $itemType = $attr->type;
-        $isObjectType = $this->analyzer->isObjectType($itemType);
+        $typeSpec = $this->resolveItemTypeSpec($attr->type, $name);
+        $itemType = $typeSpec['displayType'];
+        $isObjectType = $typeSpec['isObjectType'];
+        $objectType = $typeSpec['objectType'];
+        $scalarTypes = $typeSpec['scalarTypes'];
+
         if ($isObjectType) {
-            $context->registerNestedType($itemType);
+            if ($objectType === null) {
+                throw new \RuntimeException("ArrayOf object type resolution failed for '{$name}'.");
+            }
+            $context->registerNestedType($objectType);
         }
 
         if ($property->isUndefinable) {
-            return [Ast::if(HydraAst::keyExists($key), $this->generateThenStmts($property, $key, $name, $path, $itemType, $isObjectType))];
+            return [Ast::if(HydraAst::keyExists($key), $this->generateThenStmts($property, $key, $name, $path, $itemType, $isObjectType, $objectType, $scalarTypes))];
         }
 
         if ($property->isRequired()) {
             return [Ast::if(
                 HydraAst::keyMissing($key),
                 [HydraAst::appendHydrationError('MISSING_KEY', Ast::string("Missing required key '{$key}'"), $name, $path)],
-                $this->generateThenStmts($property, $key, $name, $path, $itemType, $isObjectType),
+                $this->generateThenStmts($property, $key, $name, $path, $itemType, $isObjectType, $objectType, $scalarTypes),
             )];
         }
 
@@ -67,13 +77,13 @@ final class ArrayOfTypeHandler implements TypeHandler
             return [Ast::if(
                 HydraAst::keyMissing($key),
                 [HydraAst::appendHydrationError('MISSING_KEY', Ast::string("Missing key '{$key}' (nullable but key must exist)"), $name, $path)],
-                $this->generateThenStmts($property, $key, $name, $path, $itemType, $isObjectType),
+                $this->generateThenStmts($property, $key, $name, $path, $itemType, $isObjectType, $objectType, $scalarTypes),
             )];
         }
 
         return [Ast::if(
             HydraAst::keyExists($key),
-            $this->generateThenStmts($property, $key, $name, $path, $itemType, $isObjectType),
+            $this->generateThenStmts($property, $key, $name, $path, $itemType, $isObjectType, $objectType, $scalarTypes),
             [HydraAst::assignArg($name, Ast::toExpr($property->getEffectiveDefault()))],
         )];
     }
@@ -90,12 +100,15 @@ final class ArrayOfTypeHandler implements TypeHandler
             throw new \InvalidArgumentException("Missing ArrayOf attribute for '{$name}'");
         }
 
-        $itemType = $attr->type;
-        $isObjectType = $this->analyzer->isObjectType($itemType);
+        $typeSpec = $this->resolveItemTypeSpec($attr->type, $name);
+        $itemType = $typeSpec['displayType'];
+        $isObjectType = $typeSpec['isObjectType'];
+        $objectType = $typeSpec['objectType'];
+        $scalarTypes = $typeSpec['scalarTypes'];
         $path = HydraAst::pathExpr($name);
 
         if ($property->isUndefinable) {
-            return $this->generateUndefinableDehydration($property, $name, $outputKey, $itemType, $isObjectType, $path, $context);
+            return $this->generateUndefinableDehydration($property, $name, $outputKey, $itemType, $isObjectType, $objectType, $scalarTypes, $path, $context);
         }
 
         if ($property->isNullable) {
@@ -103,15 +116,17 @@ final class ArrayOfTypeHandler implements TypeHandler
                 Ast::if(
                     Ast::identical(HydraAst::objectProperty($name), Ast::null()),
                     [HydraAst::assignResult($outputKey, Ast::null())],
-                    $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $path),
+                    $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $objectType, $scalarTypes, $path),
                 ),
             ];
         }
 
-        return $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $path);
+        return $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $objectType, $scalarTypes, $path);
     }
 
     /**
+     * @param list<string> $scalarTypes
+     *
      * @return list<Stmt>
      */
     private function generateThenStmts(
@@ -121,21 +136,25 @@ final class ArrayOfTypeHandler implements TypeHandler
         Expr $path,
         string $itemType,
         bool $isObjectType,
+        ?string $objectType,
+        array $scalarTypes,
     ): array {
         if ($property->isNullable) {
             return [
                 Ast::if(
                     Ast::identical(HydraAst::dataAccess($key), Ast::null()),
                     [HydraAst::assignArg($name, Ast::null())],
-                    $this->generateArrayValidationStmts($key, $name, $path, $itemType, $isObjectType),
+                    $this->generateArrayValidationStmts($key, $name, $path, $itemType, $isObjectType, $objectType, $scalarTypes),
                 ),
             ];
         }
 
-        return $this->generateArrayValidationStmts($key, $name, $path, $itemType, $isObjectType);
+        return $this->generateArrayValidationStmts($key, $name, $path, $itemType, $isObjectType, $objectType, $scalarTypes);
     }
 
     /**
+     * @param list<string> $scalarTypes
+     *
      * @return list<Stmt>
      */
     private function generateArrayValidationStmts(
@@ -144,6 +163,8 @@ final class ArrayOfTypeHandler implements TypeHandler
         Expr $path,
         string $itemType,
         bool $isObjectType,
+        ?string $objectType,
+        array $scalarTypes,
     ): array {
         return [
             Ast::if(
@@ -154,12 +175,14 @@ final class ArrayOfTypeHandler implements TypeHandler
                     $name,
                     $path
                 )],
-                $this->generateProcessStmts($key, $name, $path, $itemType, $isObjectType),
+                $this->generateProcessStmts($key, $name, $path, $itemType, $isObjectType, $objectType, $scalarTypes),
             ),
         ];
     }
 
     /**
+     * @param list<string> $scalarTypes
+     *
      * @return list<Stmt>
      */
     private function generateProcessStmts(
@@ -168,14 +191,19 @@ final class ArrayOfTypeHandler implements TypeHandler
         Expr $path,
         string $itemType,
         bool $isObjectType,
+        ?string $objectType,
+        array $scalarTypes,
     ): array {
         $itemPathVar = "itemPath_{$name}";
         $arrayKeyVar = "arrayKey_{$name}";
 
         if ($isObjectType) {
-            $itemTypeCheck = Ast::funcCall('is_a', [Ast::var('item'), Ast::classConst($itemType, 'class')]);
+            if ($objectType === null) {
+                throw new \RuntimeException("ArrayOf object type resolution failed for '{$name}'.");
+            }
+            $itemTypeCheck = Ast::funcCall('is_a', [Ast::var('item'), Ast::classConst($objectType, 'class')]);
         } else {
-            $itemTypeCheck = HydraAst::scalarTypeCheck(Ast::var('item'), $itemType);
+            $itemTypeCheck = $this->buildScalarTypeCheck(Ast::var('item'), $scalarTypes);
         }
 
         if ($itemTypeCheck === null) {
@@ -221,6 +249,8 @@ final class ArrayOfTypeHandler implements TypeHandler
     }
 
     /**
+     * @param list<string> $scalarTypes
+     *
      * @return list<Stmt>
      */
     private function generateDehydrationValidationStmts(
@@ -228,6 +258,8 @@ final class ArrayOfTypeHandler implements TypeHandler
         string $outputKey,
         string $itemType,
         bool $isObjectType,
+        ?string $objectType,
+        array $scalarTypes,
         Expr $pathExpr,
     ): array {
         $itemPathVar = "dehydrateItemPath_{$name}";
@@ -235,9 +267,12 @@ final class ArrayOfTypeHandler implements TypeHandler
         $resultVar = "dehydrateResult_{$name}";
 
         if ($isObjectType) {
-            $itemTypeCheck = Ast::funcCall('is_a', [Ast::var('item'), Ast::classConst($itemType, 'class')]);
+            if ($objectType === null) {
+                throw new \RuntimeException("ArrayOf object type resolution failed for '{$name}'.");
+            }
+            $itemTypeCheck = Ast::funcCall('is_a', [Ast::var('item'), Ast::classConst($objectType, 'class')]);
         } else {
-            $itemTypeCheck = HydraAst::scalarTypeCheck(Ast::var('item'), $itemType);
+            $itemTypeCheck = $this->buildScalarTypeCheck(Ast::var('item'), $scalarTypes);
         }
 
         if ($itemTypeCheck === null) {
@@ -294,6 +329,8 @@ final class ArrayOfTypeHandler implements TypeHandler
     }
 
     /**
+     * @param list<string> $scalarTypes
+     *
      * @return list<Stmt>
      */
     private function generateUndefinableDehydration(
@@ -302,6 +339,8 @@ final class ArrayOfTypeHandler implements TypeHandler
         string $outputKey,
         string $itemType,
         bool $isObjectType,
+        ?string $objectType,
+        array $scalarTypes,
         Expr $pathExpr,
         GenerationContext $context,
     ): array {
@@ -319,10 +358,10 @@ final class ArrayOfTypeHandler implements TypeHandler
                 Ast::if(
                     Ast::identical(HydraAst::objectProperty($name), Ast::null()),
                     [HydraAst::assignResult($outputKey, Ast::null())],
-                    $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $pathExpr),
+                    $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $objectType, $scalarTypes, $pathExpr),
                 ),
             ]
-            : $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $pathExpr);
+            : $this->generateDehydrationValidationStmts($name, $outputKey, $itemType, $isObjectType, $objectType, $scalarTypes, $pathExpr);
 
         $elseStmts = null;
         if ($property->shouldEmitUndefinedDehydrationValue()) {
@@ -333,5 +372,110 @@ final class ArrayOfTypeHandler implements TypeHandler
             Ast::expr($refProp),
             Ast::if($isInitialized, $thenStmts, $elseStmts),
         ];
+    }
+
+    /**
+     * @return array{
+     *   displayType: string,
+     *   isObjectType: bool,
+     *   objectType: null|string,
+     *   scalarTypes: list<string>
+     * }
+     */
+    private function resolveItemTypeSpec(string $rawType, string $propertyName): array
+    {
+        if (str_contains($rawType, '|')) {
+            return $this->parseScalarUnionType($rawType, $propertyName);
+        }
+
+        if (in_array($rawType, self::SUPPORTED_SCALAR_TYPES, true)) {
+            return [
+                'displayType' => $rawType,
+                'isObjectType' => false,
+                'objectType' => null,
+                'scalarTypes' => [$rawType],
+            ];
+        }
+
+        if ($rawType === 'array') {
+            throw new \InvalidArgumentException("Invalid ArrayOf type 'array' for '{$propertyName}'. Use scalar type(s) or object class.");
+        }
+
+        if ($this->analyzer->isObjectType($rawType)) {
+            return [
+                'displayType' => $rawType,
+                'isObjectType' => true,
+                'objectType' => $rawType,
+                'scalarTypes' => [],
+            ];
+        }
+
+        throw new \InvalidArgumentException("Invalid ArrayOf type '{$rawType}' for '{$propertyName}'.");
+    }
+
+    /**
+     * @return array{
+     *   displayType: string,
+     *   isObjectType: bool,
+     *   objectType: null|string,
+     *   scalarTypes: list<string>
+     * }
+     */
+    private function parseScalarUnionType(string $rawType, string $propertyName): array
+    {
+        if (preg_match('/\s/', $rawType) === 1) {
+            throw new \InvalidArgumentException("Invalid ArrayOf union type '{$rawType}' for '{$propertyName}': spaces are not allowed.");
+        }
+
+        $types = explode('|', $rawType);
+        if (in_array('', $types, true)) {
+            throw new \InvalidArgumentException("Invalid ArrayOf union type '{$rawType}' for '{$propertyName}'.");
+        }
+
+        foreach ($types as $type) {
+            if ($type === 'array') {
+                throw new \InvalidArgumentException("Invalid ArrayOf union type '{$rawType}' for '{$propertyName}': 'array' is not supported.");
+            }
+            if (!in_array($type, self::SUPPORTED_SCALAR_TYPES, true)) {
+                throw new \InvalidArgumentException("Invalid ArrayOf union type '{$rawType}' for '{$propertyName}'.");
+            }
+        }
+
+        /** @var list<string> $uniqueTypes */
+        $uniqueTypes = array_values(array_unique($types));
+
+        return [
+            'displayType' => implode('|', $uniqueTypes),
+            'isObjectType' => false,
+            'objectType' => null,
+            'scalarTypes' => $uniqueTypes,
+        ];
+    }
+
+    /**
+     * @param list<string> $scalarTypes
+     */
+    private function buildScalarTypeCheck(Expr $value, array $scalarTypes): ?Expr
+    {
+        if (in_array('mixed', $scalarTypes, true)) {
+            return null;
+        }
+
+        $checks = [];
+        foreach ($scalarTypes as $scalarType) {
+            $check = $scalarType === 'null'
+                ? Ast::identical($value, Ast::null())
+                : HydraAst::scalarTypeCheck($value, $scalarType);
+            if ($check === null) {
+                throw new \InvalidArgumentException("Invalid scalar type '{$scalarType}' in ArrayOf.");
+            }
+            $checks[] = $check;
+        }
+
+        if ($checks === []) {
+            throw new \InvalidArgumentException('ArrayOf scalar type union cannot be empty.');
+        }
+
+        return Ast::anyOf(...$checks);
     }
 }

@@ -8,6 +8,11 @@ use DrabekDigital\Hydra\Exceptions\HydrationFailure;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\AddressDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\AllScalarsDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayAndMapDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayOfInvalidUnionSpacingDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayOfInvalidUnionTypeDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayOfNullOnlyDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayOfUnionNullableScalarsDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayOfUnionScalarsDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArticleDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\AttributeDefaultDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\CompanyDTO;
@@ -381,6 +386,83 @@ class HydratorTest extends TestCase
             $this->assertSame(1, $errors[0]->key);
             $this->assertSame('tags[1]', $errors[0]->fullPath);
         }
+    }
+
+    public function testArrayOfUnionScalarsHydratesValidItems(): void
+    {
+        $this->assertHydrates(
+            ['items' => ['foo', 1, 'bar', 2]],
+            ArrayOfUnionScalarsDTO::class,
+            fn (ArrayOfUnionScalarsDTO $dto) => $this->assertSame(['foo', 1, 'bar', 2], $dto->items)
+        );
+    }
+
+    public function testArrayOfUnionScalarsFailsOnInvalidItemType(): void
+    {
+        try {
+            $this->hydrator->hydrate(
+                ['items' => ['foo', 1, 1.2]],
+                ArrayOfUnionScalarsDTO::class
+            );
+            $this->fail('Expected HydrationFailure was not thrown');
+        } catch (HydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('type_mismatch', $errors[0]->code->value);
+            $this->assertSame(2, $errors[0]->key);
+            $this->assertSame('items[2]', $errors[0]->fullPath);
+        }
+    }
+
+    public function testArrayOfUnionNullableScalarsHydratesValidItems(): void
+    {
+        $this->assertHydrates(
+            ['items' => ['foo', 1, null, 'bar']],
+            ArrayOfUnionNullableScalarsDTO::class,
+            fn (ArrayOfUnionNullableScalarsDTO $dto) => $this->assertSame(['foo', 1, null, 'bar'], $dto->items)
+        );
+    }
+
+    public function testArrayOfNullOnlyHydratesNullItems(): void
+    {
+        $this->assertHydrates(
+            ['items' => [null, null]],
+            ArrayOfNullOnlyDTO::class,
+            fn (ArrayOfNullOnlyDTO $dto) => $this->assertSame([null, null], $dto->items)
+        );
+    }
+
+    public function testArrayOfNullOnlyFailsOnNonNullItem(): void
+    {
+        try {
+            $this->hydrator->hydrate(
+                ['items' => [null, 'x']],
+                ArrayOfNullOnlyDTO::class
+            );
+            $this->fail('Expected HydrationFailure was not thrown');
+        } catch (HydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('type_mismatch', $errors[0]->code->value);
+            $this->assertSame(1, $errors[0]->key);
+            $this->assertSame('items[1]', $errors[0]->fullPath);
+        }
+    }
+
+    public function testArrayOfInvalidUnionTypeFailsFastOnHydration(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid ArrayOf union type 'string|int|array' for 'items'");
+
+        $this->hydrator->hydrate(['items' => ['foo', 1]], ArrayOfInvalidUnionTypeDTO::class);
+    }
+
+    public function testArrayOfInvalidUnionSpacingFailsFastOnHydration(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid ArrayOf union type 'string |int' for 'items': spaces are not allowed.");
+
+        $this->hydrator->hydrate(['items' => ['foo', 1]], ArrayOfInvalidUnionSpacingDTO::class);
     }
 
     public function testMapOfScalarsFailsOnInvalidValueType(): void

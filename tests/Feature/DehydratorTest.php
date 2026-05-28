@@ -7,6 +7,11 @@ namespace DrabekDigital\Hydra\Tests\Feature;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\AddressDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\AllScalarsDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayAndMapDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayOfInvalidUnionSpacingDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayOfInvalidUnionTypeDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayOfNullOnlyDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayOfUnionNullableScalarsDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayOfUnionScalarsDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArticleDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\CompanyDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\DateTimeDTO;
@@ -207,6 +212,49 @@ class DehydratorTest extends TestCase
             'tags' => ['php'],
             'scores' => ['alpha' => 100, 'beta' => 200],
         ]);
+    }
+
+    public function testDehydratesArrayOfUnionScalars(): void
+    {
+        $dto = new ArrayOfUnionScalarsDTO(items: ['foo', 1, 'bar', 2]);
+
+        $this->assertDehydrates($dto, [
+            'items' => ['foo', 1, 'bar', 2],
+        ]);
+    }
+
+    public function testDehydratesArrayOfUnionNullableScalars(): void
+    {
+        $dto = new ArrayOfUnionNullableScalarsDTO(items: ['foo', 1, null, 'bar']);
+
+        $this->assertDehydrates($dto, [
+            'items' => ['foo', 1, null, 'bar'],
+        ]);
+    }
+
+    public function testDehydratesArrayOfNullOnly(): void
+    {
+        $dto = new ArrayOfNullOnlyDTO(items: [null, null]);
+
+        $this->assertDehydrates($dto, [
+            'items' => [null, null],
+        ]);
+    }
+
+    public function testArrayOfInvalidUnionTypeFailsFastOnDehydration(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid ArrayOf union type 'string|int|array' for 'items'");
+
+        $this->dehydrator->dehydrate(new ArrayOfInvalidUnionTypeDTO(items: ['foo', 1]));
+    }
+
+    public function testArrayOfInvalidUnionSpacingFailsFastOnDehydration(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid ArrayOf union type 'string |int' for 'items': spaces are not allowed.");
+
+        $this->dehydrator->dehydrate(new ArrayOfInvalidUnionSpacingDTO(items: ['foo', 1]));
     }
 
     public function testDehydratesMapOfWithObjectValues(): void

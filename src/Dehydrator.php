@@ -12,6 +12,7 @@ use DrabekDigital\Hydra\Attributes\ObjectType;
 use DrabekDigital\Hydra\Caching\CacheInterface;
 use DrabekDigital\Hydra\CodeGen\ArrayDehydratorGenerator;
 use DrabekDigital\Hydra\CodeGen\DehydratorGenerator;
+use DrabekDigital\Hydra\Exceptions\DehydrationFailure;
 use DrabekDigital\Hydra\Mappers\Mapper;
 use DrabekDigital\Hydra\Metadata\ClassAnalyzer;
 use DrabekDigital\Hydra\Runtime\ArrayDehydratorRuntime;
@@ -69,6 +70,10 @@ class Dehydrator
      * @param bool $bypassCache Skip cache and regenerate dehydrator
      *
      * @return array<string, mixed>
+     *
+     * @throws DehydrationFailure        When object cannot be dehydrated
+     * @throws \InvalidArgumentException When DTO metadata/attributes contain invalid configuration
+     * @throws \RuntimeException         When runtime code generation/cache/bootstrap fails
      */
     public function dehydrate(object $object, bool $bypassCache = false): array
     {
@@ -85,6 +90,10 @@ class Dehydrator
      * @param bool          $bypassCache Skip cache and regenerate dehydrators
      *
      * @return array<array<string, mixed>>
+     *
+     * @throws DehydrationFailure        When one or more objects cannot be dehydrated
+     * @throws \InvalidArgumentException When DTO metadata/attributes contain invalid configuration
+     * @throws \RuntimeException         When runtime code generation/cache/bootstrap fails
      */
     public function dehydrateArray(array $objects, bool $bypassCache = false): array
     {

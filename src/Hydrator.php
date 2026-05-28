@@ -12,6 +12,7 @@ use DrabekDigital\Hydra\Attributes\ObjectType;
 use DrabekDigital\Hydra\Caching\CacheInterface;
 use DrabekDigital\Hydra\CodeGen\ArrayHydratorGenerator;
 use DrabekDigital\Hydra\CodeGen\HydratorGenerator;
+use DrabekDigital\Hydra\Exceptions\HydrationFailure;
 use DrabekDigital\Hydra\Mappers\Mapper;
 use DrabekDigital\Hydra\Metadata\ClassAnalyzer;
 use DrabekDigital\Hydra\Runtime\ArrayHydratorRuntime;
@@ -73,6 +74,10 @@ class Hydrator
      * @param bool                 $bypassCache Skip cache and regenerate hydrator
      *
      * @return T
+     *
+     * @throws HydrationFailure          When input data cannot be hydrated into requested object
+     * @throws \InvalidArgumentException When DTO metadata/attributes contain invalid configuration
+     * @throws \RuntimeException         When runtime code generation/cache/bootstrap fails
      */
     public function hydrate(array $data, string $className, bool $bypassCache = false): object
     {
@@ -95,6 +100,10 @@ class Hydrator
      * @param bool                             $bypassCache   Skip cache and regenerate hydrators
      *
      * @return array<object>
+     *
+     * @throws HydrationFailure          When one or more items cannot be hydrated
+     * @throws \InvalidArgumentException When arguments or DTO metadata/attributes are invalid
+     * @throws \RuntimeException         When runtime code generation/cache/bootstrap fails
      */
     public function hydrateArray(
         array $data,

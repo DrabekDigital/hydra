@@ -119,6 +119,9 @@ class Entry {
         #[ArrayOf('string')]
         public readonly array $tags = [],
 
+        #[ArrayOf('string|int')] // Scalar unions are supported (no spaces)
+        public readonly array $identifiers = [],
+
         #[ListOf(Person::class)]
         public readonly array $friends,
 
@@ -138,6 +141,8 @@ class Entry {
     ) {}
 }
 ```
+
+> **ArrayOf note:** `ArrayOf` supports scalar item types (`string`, `int`, `float`, `bool`, `null`, `mixed`), scalar unions without spaces (for example `string|int|null`), and object class names. Invalid type declarations fail fast during hydrator/dehydrator generation. `array` is not supported as an `ArrayOf` item type.
 
 ## Objects
 

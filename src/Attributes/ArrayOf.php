@@ -11,7 +11,10 @@ namespace DrabekDigital\Hydra\Attributes;
 final class ArrayOf
 {
     /**
-     * @param string $type The item type ('string', 'int', 'float', 'bool', 'mixed')
+     * @param string $type The item type:
+     *                     - scalar ('string', 'int', 'float', 'bool', 'null', 'mixed')
+     *                     - scalar union without spaces (e.g. 'string|int')
+     *                     - object class name
      */
     public function __construct(
         public readonly string $type = 'mixed',
