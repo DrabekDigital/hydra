@@ -57,11 +57,6 @@ final class ValidationRuleExecution
         );
     }
 
-    private static function attributeLabel(TypedValidationAttribute $attribute): string
-    {
-        return $attribute::class;
-    }
-
     public static function isApplicable(TypedValidationAttribute $attribute, mixed $value): bool
     {
         if ($value === null) {
@@ -69,6 +64,11 @@ final class ValidationRuleExecution
         }
 
         return self::valueMatchesSupportedTypes($value, $attribute);
+    }
+
+    private static function attributeLabel(TypedValidationAttribute $attribute): string
+    {
+        return $attribute::class;
     }
 
     private static function nullValueIsApplicable(TypedValidationAttribute $attribute): bool

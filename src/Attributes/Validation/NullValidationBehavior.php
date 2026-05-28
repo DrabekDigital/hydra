@@ -12,9 +12,10 @@ enum NullValidationBehavior
     /** Treat null as a validation failure for this rule. */
     case FailWhenNull;
 
-    /** 
-     * Always run the rule regardless of null (e.g. IsNull, NotNull). 
-     * @internal 
+    /**
+     * Always run the rule regardless of null (e.g. IsNull, NotNull).
+     *
+     * @internal
      */
     case ValidateAlways;
 }

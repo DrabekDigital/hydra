@@ -73,7 +73,7 @@ final class ValidationRuleApplicator
 
         $numberRange = $attributes[NumberRange::class] ?? null;
         if ($numberRange instanceof NumberRange) {
-            array_push($errors, ...$this->applyTyped($numberRange, $value, $key, $fullPath, fn () => $this->runIfNumber($numberRange, $value, $key, $fullPath, static fn (int|float $v) => new NumberRangeRule($numberRange)->validate($v, $key, $fullPath))));
+            array_push($errors, ...$this->applyTyped($numberRange, $value, $key, $fullPath, fn () => $this->runIfNumber($numberRange, $value, $key, $fullPath, static fn (float|int $v) => new NumberRangeRule($numberRange)->validate($v, $key, $fullPath))));
         }
 
         $lengthRange = $attributes[LengthRange::class] ?? null;
@@ -196,7 +196,7 @@ final class ValidationRuleApplicator
     }
 
     /**
-     * @param callable(int|float): list<ValidationError> $validate
+     * @param callable(float|int): list<ValidationError> $validate
      *
      * @return list<ValidationError>
      */
