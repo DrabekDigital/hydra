@@ -8,5 +8,5 @@ enum DehydrationErrorCode: string
 {
     case TYPE_MISMATCH = 'type_mismatch';
     case INVALID_VALUE = 'invalid_value';
-    case UNEXPECTED_NULL = 'unexpected_null';
+    case UNINITIALIZED_PROPERTY = 'uninitialized_property';
 }

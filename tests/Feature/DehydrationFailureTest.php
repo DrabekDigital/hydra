@@ -12,6 +12,7 @@ use DrabekDigital\Hydra\Tests\Fixtures\Dto\FailingMapperDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\MapperExceptionDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\NoConstructorDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ScalarListDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\SkipHydrationPublicPropertyDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Objects\Car;
 use DrabekDigital\Hydra\Tests\TestCase;
 
@@ -48,7 +49,7 @@ class DehydrationFailureTest extends TestCase
             $this->assertCount(2, $errors);
 
             $codes = array_map(fn ($err) => $err->code->value, $errors);
-            $this->assertContains('unexpected_null', $codes);
+            $this->assertContains('uninitialized_property', $codes);
 
             $keys = array_map(fn ($err) => $err->key, $errors);
             $this->assertContains('title', $keys);
@@ -56,11 +57,35 @@ class DehydrationFailureTest extends TestCase
         }
     }
 
-    public function testUninitializedPropertyErrorCodeIsUnexpectedNull(): void
+    public function testUninitializedPropertyErrorCodeIsUninitializedProperty(): void
     {
         $dto = new NoConstructorDTO();
 
-        $this->assertDehydrationFails($dto, 'unexpected_null', 'title');
+        $this->assertDehydrationFails($dto, 'uninitialized_property', 'title');
+    }
+
+    public function testSkipHydrationOnlyLeavesPropertyUninitializedForDehydration(): void
+    {
+        $dto = $this->hydrator->hydrate(
+            ['visible' => 'ok', 'internal' => 'secret'],
+            SkipHydrationPublicPropertyDTO::class
+        );
+        $this->assertSame('ok', $dto->visible);
+
+        $reflection = new \ReflectionProperty($dto, 'internal');
+        $this->assertFalse($reflection->isInitialized($dto));
+
+        try {
+            $this->dehydrator->dehydrate($dto);
+            $this->fail('Expected DehydrationFailure was not thrown');
+        } catch (DehydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('uninitialized_property', $errors[0]->code->value);
+            $this->assertSame('internal', $errors[0]->key);
+            $this->assertSame('internal', $errors[0]->fullPath);
+            $this->assertStringContainsString('not initialized', $errors[0]->programmerMessage);
+        }
     }
 
     public function testPartiallyInitializedPropertyOnlyClassSucceeds(): void

@@ -62,26 +62,11 @@ final class ScalarTypeHandler implements TypeHandler
             return $this->generateUndefinableDehydration($property, $name, $outputKey, $context);
         }
 
-        $assign = HydraAst::assignResult($outputKey, HydraAst::objectProperty($name));
-
         if ($context->isPropertyOnly) {
-            $path = HydraAst::pathExpr($name);
-            $context->markDehydrationErrorsGenerated();
-
-            return [Ast::tryCatch(
-                [$assign],
-                [Ast::catch_(['\Error'], 'e', [
-                    HydraAst::appendDehydrationError(
-                        'UNEXPECTED_NULL',
-                        Ast::string("Property '{$name}' is not initialized"),
-                        $outputKey,
-                        $path
-                    ),
-                ])]
-            )];
+            return $this->generatePropertyOnlyDehydration($name, $outputKey, $context);
         }
 
-        return [$assign];
+        return [HydraAst::assignResult($outputKey, HydraAst::objectProperty($name))];
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -192,6 +177,41 @@ final class ScalarTypeHandler implements TypeHandler
     // ─────────────────────────────────────────────────────────────
     // Dehydration Generators
     // ─────────────────────────────────────────────────────────────
+
+    /**
+     * @return Stmt[]
+     */
+    private function generatePropertyOnlyDehydration(string $name, string $outputKey, GenerationContext $context): array
+    {
+        $path = HydraAst::pathExpr($name);
+        $context->markDehydrationErrorsGenerated();
+
+        $refProp = Ast::assign(
+            Ast::var("ref_{$name}"),
+            Ast::new('\ReflectionProperty', [
+                Ast::classConst($context->shortName, 'class'),
+                Ast::string($name),
+            ])
+        );
+
+        $isInitialized = Ast::methodCall(Ast::var("ref_{$name}"), 'isInitialized', [Ast::var('object')]);
+
+        return [
+            Ast::expr($refProp),
+            Ast::if(
+                $isInitialized,
+                [HydraAst::assignResult($outputKey, HydraAst::objectProperty($name))],
+                [
+                    HydraAst::appendDehydrationError(
+                        'UNINITIALIZED_PROPERTY',
+                        Ast::string("Property '{$name}' is not initialized"),
+                        $outputKey,
+                        $path
+                    ),
+                ]
+            ),
+        ];
+    }
 
     /**
      * @return Stmt[]
