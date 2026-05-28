@@ -268,6 +268,36 @@ class EnumAndObjectTypeHandlerTest extends TestCase
         $handler->generateHydration($property, $this->makeContext([$property]));
     }
 
+    public function testObjectTypeGenerateHydrationThrowsWhenDiscriminatorMissingMapping(): void
+    {
+        $handler = new ObjectTypeHandler(new ClassAnalyzer());
+
+        $discriminatorWithoutMapping = $this->makeObjectTypeProperty(
+            name: 'featured',
+            primaryType: Vehicle::class,
+            objectType: new ObjectType(discriminator: 'type')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('discriminator and mapping must be set together');
+        $handler->generateHydration($discriminatorWithoutMapping, $this->makeContext([$discriminatorWithoutMapping]));
+    }
+
+    public function testObjectTypeGenerateHydrationThrowsWhenMappingMissingDiscriminator(): void
+    {
+        $handler = new ObjectTypeHandler(new ClassAnalyzer());
+
+        $mappingWithoutDiscriminator = $this->makeObjectTypeProperty(
+            name: 'featured',
+            primaryType: Vehicle::class,
+            objectType: new ObjectType(mapping: ['car' => Car::class])
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('discriminator and mapping must be set together');
+        $handler->generateHydration($mappingWithoutDiscriminator, $this->makeContext([$mappingWithoutDiscriminator]));
+    }
+
     public function testObjectTypeGenerateHydrationWithNonObjectBaseTypeSkipsRegistration(): void
     {
         $handler = new ObjectTypeHandler(new ClassAnalyzer());
@@ -323,6 +353,36 @@ class EnumAndObjectTypeHandlerTest extends TestCase
 
         $this->expectException(\InvalidArgumentException::class);
         $handler->generateDehydration($property, $this->makeContext([$property]));
+    }
+
+    public function testObjectTypeGenerateDehydrationThrowsWhenDiscriminatorMissingMapping(): void
+    {
+        $handler = new ObjectTypeHandler(new ClassAnalyzer());
+
+        $discriminatorWithoutMapping = $this->makeObjectTypeProperty(
+            name: 'featured',
+            primaryType: Vehicle::class,
+            objectType: new ObjectType(discriminator: 'type')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('discriminator and mapping must be set together');
+        $handler->generateDehydration($discriminatorWithoutMapping, $this->makeContext([$discriminatorWithoutMapping]));
+    }
+
+    public function testObjectTypeGenerateDehydrationThrowsWhenMappingMissingDiscriminator(): void
+    {
+        $handler = new ObjectTypeHandler(new ClassAnalyzer());
+
+        $mappingWithoutDiscriminator = $this->makeObjectTypeProperty(
+            name: 'featured',
+            primaryType: Vehicle::class,
+            objectType: new ObjectType(mapping: ['car' => Car::class])
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('discriminator and mapping must be set together');
+        $handler->generateDehydration($mappingWithoutDiscriminator, $this->makeContext([$mappingWithoutDiscriminator]));
     }
 
     private function makeObjectTypeProperty(

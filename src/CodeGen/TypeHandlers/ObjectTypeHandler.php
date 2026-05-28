@@ -37,6 +37,7 @@ final class ObjectTypeHandler implements TypeHandler
 
         /** @var ObjectType $attr */
         $attr = $property->getAttribute(ObjectType::class);
+        $this->validateObjectTypeConfiguration($attr, $name);
         $baseType = $attr->value ?? $property->getPrimaryType();
 
         if ($baseType !== null && $this->analyzer->isObjectType($baseType)) {
@@ -83,6 +84,7 @@ final class ObjectTypeHandler implements TypeHandler
 
         /** @var ObjectType $attr */
         $attr = $property->getAttribute(ObjectType::class);
+        $this->validateObjectTypeConfiguration($attr, $name);
         $baseType = $attr->value ?? $property->getPrimaryType();
 
         if ($baseType !== null && $this->analyzer->isObjectType($baseType)) {
@@ -214,5 +216,18 @@ final class ObjectTypeHandler implements TypeHandler
         }
 
         return [HydraAst::wrapInDehydrationCatch([HydraAst::assignResult($outputKey, HydraAst::nestedDehydrate($baseType, $name, $path))])];
+    }
+
+    private function validateObjectTypeConfiguration(ObjectType $attr, string $name): void
+    {
+        $hasDiscriminator = $attr->discriminator !== null;
+        $hasMapping = $attr->mapping !== null;
+
+        if ($hasDiscriminator xor $hasMapping) {
+            throw new \InvalidArgumentException(
+                "Invalid ObjectType configuration for '{$name}': discriminator and mapping must be set together. "
+                .'If you intended to set target class, use named argument value: ClassName::class.'
+            );
+        }
     }
 }

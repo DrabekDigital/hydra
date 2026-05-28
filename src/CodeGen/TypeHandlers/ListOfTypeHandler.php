@@ -46,10 +46,12 @@ final class ListOfTypeHandler implements TypeHandler
             throw new \InvalidArgumentException("Missing ListOf attribute for '{$name}'");
         }
         $itemType = $attr->value;
-        $isObjectType = $this->analyzer->isObjectType($itemType);
+        $isObjectType = $this->resolveObjectItemTypeMode($itemType, $attr, $name);
 
         if ($isObjectType) {
-            $context->registerNestedType($itemType);
+            if (class_exists($itemType)) {
+                $context->registerNestedType($itemType);
+            }
         }
         if ($attr->mapping !== null) {
             foreach ($attr->mapping as $mappedClass) {
@@ -84,10 +86,12 @@ final class ListOfTypeHandler implements TypeHandler
             throw new \InvalidArgumentException("Missing ListOf attribute for '{$name}'");
         }
         $itemType = $attr->value;
-        $isObjectType = $this->analyzer->isObjectType($itemType);
+        $isObjectType = $this->resolveObjectItemTypeMode($itemType, $attr, $name);
 
         if ($isObjectType) {
-            $context->registerNestedType($itemType);
+            if (class_exists($itemType)) {
+                $context->registerNestedType($itemType);
+            }
         }
         if ($attr->mapping !== null) {
             foreach ($attr->mapping as $mappedClass) {
@@ -686,5 +690,28 @@ final class ListOfTypeHandler implements TypeHandler
             Ast::expr($refProp),
             Ast::if($isInitialized, $thenStmts, $elseStmts),
         ];
+    }
+
+    private function resolveObjectItemTypeMode(string $itemType, ListOf $attr, string $name): bool
+    {
+        $hasDiscriminator = $attr->discriminator !== null;
+        $hasMapping = $attr->mapping !== null;
+
+        if ($hasDiscriminator xor $hasMapping) {
+            throw new \InvalidArgumentException(
+                "Invalid ListOf configuration for '{$name}': discriminator and mapping must be set together."
+            );
+        }
+
+        $isClassObjectType = $this->analyzer->isObjectType($itemType);
+        $isInterfaceType = interface_exists($itemType);
+
+        if ($isInterfaceType && !$hasDiscriminator) {
+            throw new \InvalidArgumentException(
+                "Invalid ListOf configuration for '{$name}': interface item type '{$itemType}' requires discriminator and mapping."
+            );
+        }
+
+        return $isClassObjectType || $isInterfaceType;
     }
 }

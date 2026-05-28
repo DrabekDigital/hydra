@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace DrabekDigital\Hydra\Tests\Feature;
 
+use DrabekDigital\Hydra\Exceptions\HydrationFailure;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\MapperExceptionWithHydrationErrorDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ProductDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Mappers\Money;
 use DrabekDigital\Hydra\Tests\Fixtures\Mappers\MoneyMapper;
@@ -61,5 +63,23 @@ class CustomMapperTest extends TestCase
             ProductDTO::class,
             fn (ProductDTO $dto) => $this->assertSame(2500, $dto->price->cents)
         );
+    }
+
+    public function testMapperExceptionCanProvidePopulatedHydrationError(): void
+    {
+        try {
+            $this->hydrator->hydrate(
+                ['value' => 'anything', 'other' => 'ok'],
+                MapperExceptionWithHydrationErrorDTO::class
+            );
+            $this->fail('Expected HydrationFailure was not thrown');
+        } catch (HydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('invalid_value', $errors[0]->code->value);
+            $this->assertSame('value', $errors[0]->key);
+            $this->assertSame('value', $errors[0]->fullPath);
+            $this->assertStringContainsString('Custom mapper hydration mismatch', $errors[0]->programmerMessage);
+        }
     }
 }

@@ -376,6 +376,29 @@ class ClassAnalyzerTest extends TestCase
         );
     }
 
+    public function testResolvePropertySourceDistinguishesConstructorAndPublicProperties(): void
+    {
+        $constructorClass = new class('John', 'Doe') {
+            public function __construct(
+                public string $first,
+                public string $last,
+            ) {}
+        };
+
+        $propertyOnlyClass = new class {
+            public string $first;
+            public string $last;
+        };
+
+        $method = new \ReflectionMethod(ClassAnalyzer::class, 'resolvePropertySource');
+
+        $constructorSource = $method->invoke($this->analyzer, new \ReflectionClass($constructorClass));
+        $propertySource = $method->invoke($this->analyzer, new \ReflectionClass($propertyOnlyClass));
+
+        $this->assertSame('constructor_parameters', $constructorSource);
+        $this->assertSame('public_properties', $propertySource);
+    }
+
     public function testAnalyzePublicPropertiesCoversStaticUnionAndAttributesBranches(): void
     {
         $object = new class {

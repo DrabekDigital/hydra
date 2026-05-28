@@ -53,6 +53,7 @@ class ClassAnalyzer
         $reflection = new \ReflectionClass($className);
         $structure = [
             'class' => $className,
+            'propertySource' => $this->resolvePropertySource($reflection),
             'classAttributes' => [],
             'properties' => [],
         ];
@@ -66,8 +67,10 @@ class ClassAnalyzer
 
         $constructor = $reflection->getConstructor();
 
-        // Use constructor parameters if available, otherwise use public properties
-        if ($constructor !== null && $constructor->getNumberOfParameters() > 0) {
+        if ($structure['propertySource'] === 'constructor_parameters') {
+            if ($constructor === null) {
+                throw new \RuntimeException("Constructor parameters source selected without constructor for {$className}");
+            }
             foreach ($constructor->getParameters() as $parameter) {
                 $paramStructure = [
                     'name' => $parameter->getName(),
@@ -125,6 +128,20 @@ class ClassAnalyzer
         }
 
         return substr(md5($json), 0, 12);
+    }
+
+    /**
+     * @param \ReflectionClass<object> $reflection
+     */
+    private function resolvePropertySource(\ReflectionClass $reflection): string
+    {
+        $constructor = $reflection->getConstructor();
+
+        if ($constructor !== null && $constructor->getNumberOfParameters() > 0) {
+            return 'constructor_parameters';
+        }
+
+        return 'public_properties';
     }
 
     /**

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace DrabekDigital\Hydra\Tests\Feature;
 
+use DrabekDigital\Hydra\Exceptions\HydrationFailure;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\FailingFormatterWithHydrationErrorDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\WorkingFormatterDTO;
 use DrabekDigital\Hydra\Tests\TestCase;
 
@@ -72,5 +74,23 @@ class CustomFormatterTest extends TestCase
         $result = $this->dehydrator->dehydrate($dto);
 
         $this->assertSame('world', $result['dehydrateOnly']); // dehydrate closure applied
+    }
+
+    public function testFormatterExceptionCanProvidePopulatedHydrationError(): void
+    {
+        try {
+            $this->hydrator->hydrate(
+                ['value' => 'hello', 'other' => 'ok'],
+                FailingFormatterWithHydrationErrorDTO::class
+            );
+            $this->fail('Expected HydrationFailure was not thrown');
+        } catch (HydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('invalid_value', $errors[0]->code->value);
+            $this->assertSame('value', $errors[0]->key);
+            $this->assertSame('value', $errors[0]->fullPath);
+            $this->assertStringContainsString('Formatter hydration mismatch', $errors[0]->programmerMessage);
+        }
     }
 }

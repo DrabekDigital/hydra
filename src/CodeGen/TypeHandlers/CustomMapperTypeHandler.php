@@ -156,7 +156,11 @@ final class CustomMapperTypeHandler implements TypeHandler
         ];
 
         $elseStmts = [
-            HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path)),
+            $this->wrapInMapperHydrationCatch(
+                HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path)),
+                $name,
+                $path
+            ),
         ];
 
         return [Ast::if(HydraAst::keyMissing($key), $thenStmts, $elseStmts)];
@@ -175,7 +179,13 @@ final class CustomMapperTypeHandler implements TypeHandler
             Ast::if(
                 Ast::identical(HydraAst::dataAccess($key), Ast::null()),
                 [HydraAst::assignArg($name, Ast::null())],
-                [HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path))]
+                [
+                    $this->wrapInMapperHydrationCatch(
+                        HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path)),
+                        $name,
+                        $path
+                    ),
+                ]
             ),
         ];
 
@@ -194,12 +204,22 @@ final class CustomMapperTypeHandler implements TypeHandler
                 Ast::if(
                     Ast::identical(HydraAst::dataAccess($key), Ast::null()),
                     [HydraAst::assignArg($name, Ast::null())],
-                    [HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path))]
+                    [
+                        $this->wrapInMapperHydrationCatch(
+                            HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path)),
+                            $name,
+                            $path
+                        ),
+                    ]
                 ),
             ];
         } else {
             $thenStmts = [
-                HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path)),
+                $this->wrapInMapperHydrationCatch(
+                    HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path)),
+                    $name,
+                    $path
+                ),
             ];
         }
 
@@ -218,12 +238,22 @@ final class CustomMapperTypeHandler implements TypeHandler
                 Ast::if(
                     Ast::identical(HydraAst::dataAccess($key), Ast::null()),
                     [HydraAst::assignArg($name, Ast::null())],
-                    [HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path))]
+                    [
+                        $this->wrapInMapperHydrationCatch(
+                            HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path)),
+                            $name,
+                            $path
+                        ),
+                    ]
                 ),
             ];
         } else {
             $thenStmts = [
-                HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path)),
+                $this->wrapInMapperHydrationCatch(
+                    HydraAst::assignArg($name, $this->mapperHydrateCall($mapperClass, $key, $path)),
+                    $name,
+                    $path
+                ),
             ];
         }
 
@@ -234,20 +264,74 @@ final class CustomMapperTypeHandler implements TypeHandler
     // Dehydration Generators
     // ─────────────────────────────────────────────────────────────
 
+    private function wrapInMapperHydrationCatch(Stmt\Expression $stmt, string $name, Expr $path): Stmt\TryCatch
+    {
+        $defaultErrorStmt = HydraAst::appendHydrationError(
+            'INVALID_VALUE',
+            Ast::methodCall(Ast::var('e'), 'getMessage'),
+            $name,
+            $path
+        );
+
+        $mapperErrorVar = Ast::var('mapperError');
+        $mapperErrorAssign = Ast::expr(Ast::assign(
+            $mapperErrorVar,
+            Ast::methodCall(Ast::var('e'), 'getHydrationError')
+        ));
+        $appendMapperErrorStmt = Ast::expr(Ast::assign(
+            Ast::arrayAccess(Ast::var('errors'), null),
+            $mapperErrorVar
+        ));
+        $mapperErrorBranch = Ast::if(
+            Ast::notIdentical($mapperErrorVar, Ast::null()),
+            [$appendMapperErrorStmt],
+            [$defaultErrorStmt]
+        );
+
+        return Ast::tryCatch(
+            [$stmt],
+            [
+                Ast::catch_(['\DrabekDigital\Hydra\Exceptions\MapperException'], 'e', [
+                    $mapperErrorAssign,
+                    $mapperErrorBranch,
+                ]),
+                Ast::catch_(['\Throwable'], 'e', [$defaultErrorStmt]),
+            ]
+        );
+    }
+
     private function wrapInMapperCatch(Stmt\Expression $stmt, string $outputKey, Expr $path): Stmt\TryCatch
     {
-        $errorStmt = HydraAst::appendDehydrationError(
+        $defaultErrorStmt = HydraAst::appendDehydrationError(
             'INVALID_VALUE',
             Ast::methodCall(Ast::var('e'), 'getMessage'),
             $outputKey,
             $path
         );
 
+        $mapperErrorVar = Ast::var('mapperError');
+        $mapperErrorAssign = Ast::expr(Ast::assign(
+            $mapperErrorVar,
+            Ast::methodCall(Ast::var('e'), 'getDehydrationError')
+        ));
+        $appendMapperErrorStmt = Ast::expr(Ast::assign(
+            Ast::arrayAccess(Ast::var('errors'), null),
+            $mapperErrorVar
+        ));
+        $mapperErrorBranch = Ast::if(
+            Ast::notIdentical($mapperErrorVar, Ast::null()),
+            [$appendMapperErrorStmt],
+            [$defaultErrorStmt]
+        );
+
         return Ast::tryCatch(
             [$stmt],
             [
-                Ast::catch_(['\DrabekDigital\Hydra\Exceptions\MapperException'], 'e', [$errorStmt]),
-                Ast::catch_(['\Throwable'], 'e', [$errorStmt]),
+                Ast::catch_(['\DrabekDigital\Hydra\Exceptions\MapperException'], 'e', [
+                    $mapperErrorAssign,
+                    $mapperErrorBranch,
+                ]),
+                Ast::catch_(['\Throwable'], 'e', [$defaultErrorStmt]),
             ]
         );
     }

@@ -9,7 +9,7 @@ use DrabekDigital\Hydra\Attributes\ArrayOf;
 readonly class ArrayOfUnionNullableScalarsDTO
 {
     /**
-     * @param array<int, int|string|null> $items
+     * @param array<int, null|int|string> $items
      */
     public function __construct(
         #[ArrayOf('string|int|null')]

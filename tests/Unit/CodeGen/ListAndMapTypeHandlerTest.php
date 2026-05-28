@@ -141,6 +141,30 @@ class ListAndMapTypeHandlerTest extends TestCase
         $this->assertNotEmpty($handler->generateHydration($property, $this->makeContext([$property])));
     }
 
+    public function testListOfGenerateHydrationThrowsForInterfaceItemTypeWithoutDiscriminatorMapping(): void
+    {
+        $handler = new ListOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeListProperty(name: 'animals', valueType: LocalAnimal::class);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('interface item type');
+        $handler->generateHydration($property, $this->makeContext([$property]));
+    }
+
+    public function testListOfGenerateHydrationThrowsWhenDiscriminatorOrMappingMissing(): void
+    {
+        $handler = new ListOfTypeHandler(new ClassAnalyzer());
+        $missingMapping = $this->makeListProperty(
+            name: 'animals',
+            valueType: Vehicle::class,
+            listOf: new ListOf(value: Vehicle::class, discriminator: 'type')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('discriminator and mapping must be set together');
+        $handler->generateHydration($missingMapping, $this->makeContext([$missingMapping]));
+    }
+
     public function testListOfGenerateDehydrationSimpleScalarAndObjectBranches(): void
     {
         $handler = new ListOfTypeHandler(new ClassAnalyzer());
@@ -194,6 +218,30 @@ class ListAndMapTypeHandlerTest extends TestCase
         );
 
         $this->assertNotEmpty($handler->generateDehydration($property, $this->makeContext([$property])));
+    }
+
+    public function testListOfGenerateDehydrationThrowsForInterfaceItemTypeWithoutDiscriminatorMapping(): void
+    {
+        $handler = new ListOfTypeHandler(new ClassAnalyzer());
+        $property = $this->makeListProperty(name: 'animals', valueType: LocalAnimal::class);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('interface item type');
+        $handler->generateDehydration($property, $this->makeContext([$property]));
+    }
+
+    public function testListOfGenerateDehydrationThrowsWhenDiscriminatorOrMappingMissing(): void
+    {
+        $handler = new ListOfTypeHandler(new ClassAnalyzer());
+        $missingMapping = $this->makeListProperty(
+            name: 'animals',
+            valueType: Vehicle::class,
+            listOf: new ListOf(value: Vehicle::class, discriminator: 'type')
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('discriminator and mapping must be set together');
+        $handler->generateDehydration($missingMapping, $this->makeContext([$missingMapping]));
     }
 
     public function testMapOfSupportsOnlyWhenAttributePresent(): void
@@ -414,3 +462,5 @@ class ListAndMapTypeHandlerTest extends TestCase
         );
     }
 }
+
+interface LocalAnimal {}

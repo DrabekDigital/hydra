@@ -8,8 +8,10 @@ use DrabekDigital\Hydra\Exceptions\DehydrationFailure;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ArrayAndMapDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\DiscriminatedGarageDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\FailingFormatterDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\FailingFormatterWithErrorDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\FailingMapperDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\MapperExceptionDTO;
+use DrabekDigital\Hydra\Tests\Fixtures\Dto\MapperExceptionWithErrorDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\NoConstructorDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ScalarListDTO;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\SkipHydrationPublicPropertyDTO;
@@ -171,6 +173,23 @@ class DehydrationFailureTest extends TestCase
         }
     }
 
+    public function testMapperExceptionCanProvidePopulatedDehydrationError(): void
+    {
+        $dto = new MapperExceptionWithErrorDTO(value: 'anything', other: 'ok');
+
+        try {
+            $this->dehydrator->dehydrate($dto);
+            $this->fail('Expected DehydrationFailure was not thrown');
+        } catch (DehydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('type_mismatch', $errors[0]->code->value);
+            $this->assertSame('value', $errors[0]->key);
+            $this->assertSame('value', $errors[0]->fullPath);
+            $this->assertStringContainsString('Custom mapper mismatch', $errors[0]->programmerMessage);
+        }
+    }
+
     // =========================================================================
     // Custom formatter failure
     // =========================================================================
@@ -202,6 +221,23 @@ class DehydrationFailureTest extends TestCase
             $this->assertCount(1, $errors);
             $this->assertSame('invalid_value', $errors[0]->code->value);
             $this->assertSame('value', $errors[0]->key);
+        }
+    }
+
+    public function testFormatterExceptionCanProvidePopulatedDehydrationError(): void
+    {
+        $dto = new FailingFormatterWithErrorDTO(value: 'hello', other: 'ok');
+
+        try {
+            $this->dehydrator->dehydrate($dto);
+            $this->fail('Expected DehydrationFailure was not thrown');
+        } catch (DehydrationFailure $e) {
+            $errors = $e->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertSame('type_mismatch', $errors[0]->code->value);
+            $this->assertSame('value', $errors[0]->key);
+            $this->assertSame('value', $errors[0]->fullPath);
+            $this->assertStringContainsString('Formatter mismatch', $errors[0]->programmerMessage);
         }
     }
 

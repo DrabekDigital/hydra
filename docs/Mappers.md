@@ -231,6 +231,8 @@ Example of custom mapper:
 ```php
 <?php declare(strict_types=1);
 
+use DrabekDigital\Hydra\Errors\DehydrationError;
+use DrabekDigital\Hydra\Errors\DehydrationErrorCode;
 use DrabekDigital\Hydra\Mappers\Mapper;
 use DrabekDigital\Hydra\Exceptions\MapperException;
 
@@ -250,6 +252,36 @@ class MyCustomMapper implements Mapper {
     }
 }
 ```
+
+When a custom mapper fails during hydration/dehydration and you want full error metadata (`code`, `key`, `fullPath`) propagated as-is, throw `MapperException` with populated domain error:
+
+```php
+<?php declare(strict_types=1);
+
+use DrabekDigital\Hydra\Errors\DehydrationError;
+use DrabekDigital\Hydra\Errors\DehydrationErrorCode;
+use DrabekDigital\Hydra\Errors\HydrationError;
+use DrabekDigital\Hydra\Errors\HydrationErrorCode;
+use DrabekDigital\Hydra\Exceptions\MapperException;
+
+// Hydration path
+throw MapperException::withHydrationError(new HydrationError(
+    code: HydrationErrorCode::INVALID_VALUE,
+    programmerMessage: "Expected cents integer for '{$key}'",
+    key: $key,
+    fullPath: $fullPath,
+));
+
+// Dehydration path
+throw MapperException::withDehydrationError(new DehydrationError(
+    code: DehydrationErrorCode::TYPE_MISMATCH,
+    programmerMessage: "Expected Money for '{$key}'",
+    key: $key,
+    fullPath: $fullPath,
+));
+```
+
+If you throw `MapperException` without embedded domain error, Hydra falls back to `invalid_value`, and uses field context (`key`, `fullPath`) from the mapper call site plus exception message as `programmerMessage`.
 
 ### Custom Mapper Attributes
 
@@ -340,7 +372,37 @@ class Money {
 >
 > **Cache note:** For closure-based formatters, Hydra uses a best-effort closure fingerprint for structure-hash invalidation (source slice + scope + static variables). It is heuristic and may not be fully reliable in all runtimes (for example dynamically generated/eval-ed closures). If you need deterministic invalidation, prefer class-based custom mappers.
 
-Limitation of this approach is that you cannot check nor return any errors. Note that for custom formatters, throwing exceptions is not a supported pattern — use a custom mapper instead if you need controlled error propagation via `MapperException`.
+Limitation of this approach is that custom formatters are lightweight and less expressive than full custom mappers. Prefer a custom mapper when you need richer control and explicit error semantics.
+
+If you still need to propagate fully populated hydration/dehydration error metadata from a formatter closure, throw `FormatterException` with embedded domain error:
+
+```php
+<?php declare(strict_types=1);
+
+use DrabekDigital\Hydra\Errors\DehydrationError;
+use DrabekDigital\Hydra\Errors\DehydrationErrorCode;
+use DrabekDigital\Hydra\Errors\HydrationError;
+use DrabekDigital\Hydra\Errors\HydrationErrorCode;
+use DrabekDigital\Hydra\Exceptions\FormatterException;
+
+// Hydration path
+throw FormatterException::withHydrationError(new HydrationError(
+    code: HydrationErrorCode::INVALID_VALUE,
+    programmerMessage: "Expected formatted string for '{$key}'",
+    key: $key,
+    fullPath: $fullPath,
+));
+
+// Dehydration path
+throw FormatterException::withDehydrationError(new DehydrationError(
+    code: DehydrationErrorCode::TYPE_MISMATCH,
+    programmerMessage: "Expected formatted money string for '{$key}'",
+    key: $key,
+    fullPath: $fullPath,
+));
+```
+
+When `FormatterException` does not carry embedded domain error, Hydra falls back to `invalid_value`, and uses field context (`key`, `fullPath`) from the formatter call site plus exception message as `programmerMessage`.
 
 ## Extra fields
 

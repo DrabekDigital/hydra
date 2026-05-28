@@ -36,7 +36,7 @@ final class CustomFormatterTypeHandler implements TypeHandler
         $path = HydraAst::pathExpr($name);
 
         if ($property->isUndefinable) {
-            return $this->generateUndefinableHydration($property, $key, $name);
+            return $this->generateUndefinableHydration($property, $key, $name, $path);
         }
 
         if ($property->isRequired()) {
@@ -47,7 +47,7 @@ final class CustomFormatterTypeHandler implements TypeHandler
             return $this->generateNullableRequired($key, $name, $path);
         }
 
-        return $this->generateWithDefault($property, $key, $name);
+        return $this->generateWithDefault($property, $key, $name, $path);
     }
 
     /** @return Stmt[] */
@@ -93,7 +93,13 @@ final class CustomFormatterTypeHandler implements TypeHandler
         return [Ast::if(
             HydraAst::keyMissing($key),
             [HydraAst::appendHydrationError('MISSING_KEY', Ast::string("Missing required key '{$key}'"), $name, $path)],
-            [HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key)))]
+            [
+                $this->wrapInFormatterHydrationCatch(
+                    HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key))),
+                    $name,
+                    $path
+                ),
+            ]
         )];
     }
 
@@ -106,13 +112,19 @@ final class CustomFormatterTypeHandler implements TypeHandler
             [Ast::if(
                 Ast::identical(HydraAst::dataAccess($key), Ast::null()),
                 [HydraAst::assignArg($name, Ast::null())],
-                [HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key)))]
+                [
+                    $this->wrapInFormatterHydrationCatch(
+                        HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key))),
+                        $name,
+                        $path
+                    ),
+                ]
             )]
         )];
     }
 
     /** @return list<Stmt> */
-    private function generateWithDefault(PropertyMetadata $prop, string $key, string $name): array
+    private function generateWithDefault(PropertyMetadata $prop, string $key, string $name, Expr $path): array
     {
         $default = Ast::toExpr($prop->getEffectiveDefault());
 
@@ -120,10 +132,22 @@ final class CustomFormatterTypeHandler implements TypeHandler
             $thenStmts = [Ast::if(
                 Ast::identical(HydraAst::dataAccess($key), Ast::null()),
                 [HydraAst::assignArg($name, Ast::null())],
-                [HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key)))]
+                [
+                    $this->wrapInFormatterHydrationCatch(
+                        HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key))),
+                        $name,
+                        $path
+                    ),
+                ]
             )];
         } else {
-            $thenStmts = [HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key)))];
+            $thenStmts = [
+                $this->wrapInFormatterHydrationCatch(
+                    HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key))),
+                    $name,
+                    $path
+                ),
+            ];
         }
 
         return [Ast::if(
@@ -134,16 +158,28 @@ final class CustomFormatterTypeHandler implements TypeHandler
     }
 
     /** @return list<Stmt> */
-    private function generateUndefinableHydration(PropertyMetadata $prop, string $key, string $name): array
+    private function generateUndefinableHydration(PropertyMetadata $prop, string $key, string $name, Expr $path): array
     {
         if ($prop->isNullable) {
             $thenStmts = [Ast::if(
                 Ast::identical(HydraAst::dataAccess($key), Ast::null()),
                 [HydraAst::assignArg($name, Ast::null())],
-                [HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key)))]
+                [
+                    $this->wrapInFormatterHydrationCatch(
+                        HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key))),
+                        $name,
+                        $path
+                    ),
+                ]
             )];
         } else {
-            $thenStmts = [HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key)))];
+            $thenStmts = [
+                $this->wrapInFormatterHydrationCatch(
+                    HydraAst::assignArg($name, $this->callHydrateFormatter($name, HydraAst::dataAccess($key))),
+                    $name,
+                    $path
+                ),
+            ];
         }
 
         return [Ast::if(HydraAst::keyExists($key), $thenStmts)];
@@ -153,18 +189,75 @@ final class CustomFormatterTypeHandler implements TypeHandler
     // Dehydration generators
     // ─────────────────────────────────────────────────────────────
 
-    private function wrapInFormatterCatch(Stmt\Expression $stmt, string $outputKey, Expr $path): Stmt\TryCatch
+    private function wrapInFormatterHydrationCatch(Stmt\Expression $stmt, string $name, Expr $path): Stmt\TryCatch
     {
+        $defaultErrorStmt = HydraAst::appendHydrationError(
+            'INVALID_VALUE',
+            Ast::methodCall(Ast::var('e'), 'getMessage'),
+            $name,
+            $path
+        );
+
+        $formatterErrorVar = Ast::var('formatterError');
+        $formatterErrorAssign = Ast::expr(Ast::assign(
+            $formatterErrorVar,
+            Ast::methodCall(Ast::var('e'), 'getHydrationError')
+        ));
+        $appendFormatterErrorStmt = Ast::expr(Ast::assign(
+            Ast::arrayAccess(Ast::var('errors'), null),
+            $formatterErrorVar
+        ));
+        $formatterErrorBranch = Ast::if(
+            Ast::notIdentical($formatterErrorVar, Ast::null()),
+            [$appendFormatterErrorStmt],
+            [$defaultErrorStmt]
+        );
+
         return Ast::tryCatch(
             [$stmt],
             [
+                Ast::catch_(['\DrabekDigital\Hydra\Exceptions\FormatterException'], 'e', [
+                    $formatterErrorAssign,
+                    $formatterErrorBranch,
+                ]),
+                Ast::catch_(['\Throwable'], 'e', [$defaultErrorStmt]),
+            ]
+        );
+    }
+
+    private function wrapInFormatterCatch(Stmt\Expression $stmt, string $outputKey, Expr $path): Stmt\TryCatch
+    {
+        $defaultErrorStmt = HydraAst::appendDehydrationError(
+            'INVALID_VALUE',
+            Ast::methodCall(Ast::var('e'), 'getMessage'),
+            $outputKey,
+            $path
+        );
+
+        $formatterErrorVar = Ast::var('formatterError');
+        $formatterErrorAssign = Ast::expr(Ast::assign(
+            $formatterErrorVar,
+            Ast::methodCall(Ast::var('e'), 'getDehydrationError')
+        ));
+        $appendFormatterErrorStmt = Ast::expr(Ast::assign(
+            Ast::arrayAccess(Ast::var('errors'), null),
+            $formatterErrorVar
+        ));
+        $formatterErrorBranch = Ast::if(
+            Ast::notIdentical($formatterErrorVar, Ast::null()),
+            [$appendFormatterErrorStmt],
+            [$defaultErrorStmt]
+        );
+
+        return Ast::tryCatch(
+            [$stmt],
+            [
+                Ast::catch_(['\DrabekDigital\Hydra\Exceptions\FormatterException'], 'e', [
+                    $formatterErrorAssign,
+                    $formatterErrorBranch,
+                ]),
                 Ast::catch_(['\Throwable'], 'e', [
-                    HydraAst::appendDehydrationError(
-                        'INVALID_VALUE',
-                        Ast::methodCall(Ast::var('e'), 'getMessage'),
-                        $outputKey,
-                        $path
-                    ),
+                    $defaultErrorStmt,
                 ]),
             ]
         );

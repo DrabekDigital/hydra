@@ -16,6 +16,7 @@ Limitations:
 
 - Circular references are not supported.
 - Type coercion is prevented by design.
+- `readonly` DTOs without constructor parameters are not currently supported for hydration. Use constructor-based `readonly` DTOs (promoted params), or non-`readonly` public properties for property-only DTOs.
 
 ## Naming strategy
 
