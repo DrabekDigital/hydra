@@ -7,6 +7,7 @@ namespace DrabekDigital\Hydra\CodeGen;
 use DrabekDigital\Hydra\Attributes\AllowExtraKeys;
 use DrabekDigital\Hydra\CodeGen\Ast\Ast;
 use DrabekDigital\Hydra\CodeGen\Ast\HydraAst;
+use DrabekDigital\Hydra\CodeGen\TypeHandlers\ArrayOfTypeHandler;
 use DrabekDigital\Hydra\CodeGen\TypeHandlers\BackedEnumTypeHandler;
 use DrabekDigital\Hydra\CodeGen\TypeHandlers\CustomFormatterTypeHandler;
 use DrabekDigital\Hydra\CodeGen\TypeHandlers\CustomMapperTypeHandler;
@@ -114,6 +115,7 @@ class HydratorGenerator
         $registry->register(new DateTimeZoneTypeHandler());
         $registry->register(new ObjectTypeHandler($this->analyzer));
         $registry->register(new MapOfTypeHandler($this->analyzer));
+        $registry->register(new ArrayOfTypeHandler($this->analyzer));
         $registry->register(new ListOfTypeHandler($this->analyzer));
         $registry->register(new NestedObjectTypeHandler($this->analyzer));
         $registry->register(new ScalarTypeHandler());

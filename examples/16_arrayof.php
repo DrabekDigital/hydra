@@ -7,13 +7,14 @@ use DrabekDigital\Hydra\Attributes\ListOf;
 use DrabekDigital\Hydra\Attributes\Validation\LengthRange;
 use DrabekDigital\Hydra\Exceptions\ValidationFailure;
 
-// ArrayOf is a documentation/annotation attribute. It does NOT validate item types
-// during hydration — the array passes through as-is. Its purpose is:
-//   1. IDE type hints for the array contents
-//   2. Validator uses it to recurse into nested objects for validation
+// ArrayOf validates item types during hydration, but does not transform items.
+// Its purpose is:
+//   1. Strict item type checking for plain arrays
+//   2. IDE type hints for the array contents
+//   3. Validator recursion into nested object items
 //
-// Contrast with ListOf: ListOf hydrates raw arrays into typed objects.
-// ArrayOf leaves items untouched.
+// Contrast with ListOf: ListOf can hydrate raw arrays into typed objects.
+// ArrayOf keeps each item as-is after type validation.
 
 final readonly class CommentDTO
 {
@@ -30,7 +31,7 @@ final class PostDTO
         // ListOf: each item is hydrated from array → CommentDTO
         #[ListOf(CommentDTO::class)]
         public readonly array $comments,
-        // ArrayOf: items pass through as-is (no hydration), documents type for IDE/tools
+        // ArrayOf: validates item type and passes value through unchanged
         #[ArrayOf('string')]
         public readonly array $tags,
     ) {}
