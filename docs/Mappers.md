@@ -22,7 +22,12 @@ class Person
 
         public readonly mixed $data,
 
+        // int|float keeps the input type as is (42 stays int, 3.14 stays float)
         public readonly int|float $height,
+
+        // float alone also accepts int input (JSON 5 decodes to int) and stores it as 5.0;
+        // the same applies to ListOf('float'), MapOf(value: 'float') and ArrayOf('float') items
+        public readonly float $weight,
 
         // If the field is not present in the input you can define default value via Default attribute
         // On dehydration the default value will be persisted

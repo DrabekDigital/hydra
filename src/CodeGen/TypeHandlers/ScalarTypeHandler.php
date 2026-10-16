@@ -90,7 +90,7 @@ final class ScalarTypeHandler implements TypeHandler
                 Ast::if(
                     Ast::not($typeCheck),
                     [HydraAst::appendHydrationError('TYPE_MISMATCH', HydraAst::typeMismatchMessage($expected, $name, $key), $name, $path)],
-                    [HydraAst::assignArg($name, HydraAst::dataAccess($key))]
+                    [HydraAst::assignArg($name, HydraAst::widenIntToFloat(HydraAst::dataAccess($key), $prop->types))]
                 ),
             ];
         } else {
@@ -117,7 +117,7 @@ final class ScalarTypeHandler implements TypeHandler
                 Ast::if(
                     Ast::not($typeCheck),
                     [HydraAst::appendHydrationError('TYPE_MISMATCH', HydraAst::typeMismatchMessage($expected, $name, $key), $name, $path)],
-                    [HydraAst::assignArg($name, HydraAst::dataAccess($key))]
+                    [HydraAst::assignArg($name, HydraAst::widenIntToFloat(HydraAst::dataAccess($key), $prop->types))]
                 ),
             ];
         } else {
@@ -141,7 +141,7 @@ final class ScalarTypeHandler implements TypeHandler
                 Ast::if(
                     Ast::not($typeCheck),
                     [HydraAst::appendHydrationError('TYPE_MISMATCH', HydraAst::typeMismatchMessage($expected, $name, $key), $name, $path)],
-                    [HydraAst::assignArg($name, HydraAst::dataAccess($key))]
+                    [HydraAst::assignArg($name, HydraAst::widenIntToFloat(HydraAst::dataAccess($key), $prop->types))]
                 ),
             ];
         } else {
@@ -164,7 +164,7 @@ final class ScalarTypeHandler implements TypeHandler
                 Ast::if(
                     Ast::not($typeCheck),
                     [HydraAst::appendHydrationError('TYPE_MISMATCH', HydraAst::typeMismatchMessage($expected, $name, $key), $name, $path)],
-                    [HydraAst::assignArg($name, HydraAst::dataAccess($key))]
+                    [HydraAst::assignArg($name, HydraAst::widenIntToFloat(HydraAst::dataAccess($key), $prop->types))]
                 ),
             ];
         } else {

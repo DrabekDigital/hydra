@@ -83,6 +83,10 @@ final class HydraAst
             }
         }
 
+        if (self::widensIntToFloat($types)) {
+            $checks[] = Ast::funcCall('is_int', [$access]);
+        }
+
         if (empty($checks)) {
             return null;
         }
@@ -359,18 +363,51 @@ final class HydraAst
 
     /**
      * Build scalar type check expression for a dynamic value expression.
+     *
+     * With $acceptIntAsFloat, 'float' also accepts int (widening, as PHP does under strict_types).
      */
-    public static function scalarTypeCheck(Expr $value, string $type): ?Expr
+    public static function scalarTypeCheck(Expr $value, string $type, bool $acceptIntAsFloat = false): ?Expr
     {
         return match ($type) {
             'string' => Ast::funcCall('is_string', [$value]),
             'int' => Ast::funcCall('is_int', [$value]),
-            'float' => Ast::funcCall('is_float', [$value]),
+            'float' => $acceptIntAsFloat
+                ? Ast::anyOf(Ast::funcCall('is_float', [$value]), Ast::funcCall('is_int', [$value]))
+                : Ast::funcCall('is_float', [$value]),
             'bool' => Ast::funcCall('is_bool', [$value]),
             'array' => Ast::funcCall('is_array', [$value]),
             'mixed' => null,
             default => null,
         };
+    }
+
+    /**
+     * is_int($value) ? (float) $value : $value — when the declared types accept float but not int.
+     *
+     * JSON numbers without a fraction (e.g. 5) decode to int, so a float property must accept them.
+     * Casting keeps the hydrated value a real float (needed for list/map items, which PHP does not coerce).
+     *
+     * @param array<string> $types
+     */
+    public static function widenIntToFloat(Expr $value, array $types): Expr
+    {
+        if (!self::widensIntToFloat($types)) {
+            return $value;
+        }
+
+        return Ast::ternary(
+            Ast::funcCall('is_int', [$value]),
+            new Expr\Cast\Double($value, ['kind' => Expr\Cast\Double::KIND_FLOAT]),
+            $value
+        );
+    }
+
+    /**
+     * @param array<string> $types
+     */
+    public static function widensIntToFloat(array $types): bool
+    {
+        return in_array('float', $types, true) && !in_array('int', $types, true);
     }
 
     /**

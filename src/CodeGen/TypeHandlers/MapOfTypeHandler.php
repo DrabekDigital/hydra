@@ -210,7 +210,7 @@ final class MapOfTypeHandler implements TypeHandler
             ];
         }
 
-        $check = HydraAst::scalarTypeCheck(Ast::var('item'), $valueType);
+        $check = HydraAst::scalarTypeCheck(Ast::var('item'), $valueType, acceptIntAsFloat: true);
         if ($check === null) {
             return [
                 Ast::expr(Ast::assign(
@@ -235,7 +235,7 @@ final class MapOfTypeHandler implements TypeHandler
                 [
                     Ast::expr(Ast::assign(
                         Ast::arrayAccess(Ast::var("result_{$name}"), Ast::var("mapKey_{$name}")),
-                        Ast::var('item')
+                        HydraAst::widenIntToFloat(Ast::var('item'), [$valueType])
                     )),
                 ]
             ),

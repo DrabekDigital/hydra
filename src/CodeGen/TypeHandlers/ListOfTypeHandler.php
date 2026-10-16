@@ -222,7 +222,7 @@ final class ListOfTypeHandler implements TypeHandler
             Ast::var("itemPath_{$name}"),
             Ast::var("i_{$name}"),
         ]);
-        $check = HydraAst::scalarTypeCheck(Ast::var('item'), $itemType);
+        $check = HydraAst::scalarTypeCheck(Ast::var('item'), $itemType, acceptIntAsFloat: true);
         if ($check === null) {
             return [
                 Ast::expr(Ast::assign(
@@ -247,7 +247,7 @@ final class ListOfTypeHandler implements TypeHandler
                 [
                     Ast::expr(Ast::assign(
                         Ast::arrayAccess(Ast::var("result_{$name}"), null),
-                        Ast::var('item')
+                        HydraAst::widenIntToFloat(Ast::var('item'), [$itemType])
                     )),
                 ]
             ),

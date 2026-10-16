@@ -76,7 +76,7 @@ $this->assertHydrationFails($data, DTO::class, 'error_code', 'key');
 - **Cache-first execution**: generated hydrators/dehydrators are cached behind `Caching\CacheInterface`; prefer stable cache keys and invalidate through existing `clearCache()` APIs.
 - **Structure-hash invalidation**: cache keys depend on class structure hashes from `Metadata\ClassAnalyzer` (types, defaults, attributes); preserve this mechanism when changing metadata logic.
 - **Recursive object graph handling**: nested DTOs, `ListOf`/array mappings and discriminated arrays are processed recursively by registering nested hydrators/dehydrators.
-- **Strict typing over coercion**: type coercion is intentionally avoided; keep explicit checks and fail with domain errors instead of silently casting.
+- **Strict typing over coercion**: type coercion is intentionally avoided; keep explicit checks and fail with domain errors instead of silently casting. The only exception is `int` → `float` widening during hydration (mirrors PHP `strict_types`), see `HydraAst::widenIntToFloat()`.
 - **Separated responsibilities**: `Hydrator`/`Dehydrator` perform transform + mapping, `Validator` performs validation and recursive traversal; avoid mixing these concerns.
 - **Pluggable extensions**: custom mappers and custom validators are extensibility points and can be registered or lazily instantiated; keep extension APIs backwards compatible.
 
