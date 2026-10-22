@@ -64,10 +64,125 @@ class Psr16CacheAdapterTest extends TestCase
         $this->assertFalse($cache->has('ClassOne', 'hydrator'));
         $this->assertFalse($cache->has('ClassTwo', 'dehydrator'));
     }
+
+    public function testClearKeepsForeignKeysInSharedPool(): void
+    {
+        $pool = new InMemoryPsr16Cache();
+        $pool->set('app.session.abc', 'session-data');
+        $pool->set('rate_limit.user_1', 42);
+        $cache = new Psr16CacheAdapter($pool);
+
+        $cache->set('ClassOne', 'hydrator', '<?php return new class {};');
+        $cache->clear();
+
+        $this->assertFalse($cache->has('ClassOne', 'hydrator'));
+        $this->assertNull($cache->get('ClassOne', 'hydrator'));
+        $this->assertSame('session-data', $pool->get('app.session.abc'));
+        $this->assertSame(42, $pool->get('rate_limit.user_1'));
+    }
+
+    public function testItemsStoredAfterClearAreReachable(): void
+    {
+        $cache = new Psr16CacheAdapter(new InMemoryPsr16Cache());
+        $code = '<?php return new class {};';
+
+        $cache->set('ClassOne', 'hydrator', $code);
+        $cache->clear();
+        $cache->set('ClassOne', 'hydrator', $code);
+
+        $this->assertTrue($cache->has('ClassOne', 'hydrator'));
+        $this->assertNotNull($cache->get('ClassOne', 'hydrator'));
+
+        $cache->clear();
+
+        $this->assertFalse($cache->has('ClassOne', 'hydrator'));
+    }
+
+    public function testClearIsVisibleToOtherAdapterInstancesWithSamePrefix(): void
+    {
+        $pool = new InMemoryPsr16Cache();
+        $first = new Psr16CacheAdapter($pool);
+        $second = new Psr16CacheAdapter($pool);
+
+        $first->set('ClassOne', 'hydrator', '<?php return new class {};');
+        $this->assertTrue($second->has('ClassOne', 'hydrator'));
+
+        $second->clear();
+
+        $this->assertFalse($first->has('ClassOne', 'hydrator'));
+    }
+
+    public function testCustomPrefixIsolatesInstancesSharingOnePool(): void
+    {
+        $pool = new InMemoryPsr16Cache();
+        $first = new Psr16CacheAdapter($pool, 'hydra_a');
+        $second = new Psr16CacheAdapter($pool, 'hydra_b');
+        $code = '<?php return new class {};';
+
+        $first->set('ClassOne', 'hydrator', $code);
+        $second->set('ClassOne', 'hydrator', $code);
+
+        $first->clear();
+
+        $this->assertFalse($first->has('ClassOne', 'hydrator'));
+        $this->assertTrue($second->has('ClassOne', 'hydrator'));
+    }
+
+    public function testInvalidGenerationCounterFallsBackToFirstGeneration(): void
+    {
+        $pool = new InMemoryPsr16Cache();
+        $pool->set('hydra.__generation', 'garbage');
+        $cache = new Psr16CacheAdapter($pool);
+
+        $cache->set('ClassOne', 'hydrator', '<?php return new class {};');
+        $this->assertTrue($cache->has('ClassOne', 'hydrator'));
+
+        $cache->clear();
+
+        $this->assertFalse($cache->has('ClassOne', 'hydrator'));
+        $this->assertSame(2, $pool->get('hydra.__generation'));
+    }
+
+    public function testNumericStringGenerationCounterIsIncremented(): void
+    {
+        $pool = new InMemoryPsr16Cache();
+        $pool->set('hydra.__generation', '5');
+        $cache = new Psr16CacheAdapter($pool);
+
+        $cache->clear();
+
+        $this->assertSame(6, $pool->get('hydra.__generation'));
+    }
+
+    public function testTtlIsAppliedToEntriesButNotToGenerationCounter(): void
+    {
+        $pool = new InMemoryPsr16Cache();
+        $cache = new Psr16CacheAdapter($pool, ttl: 3600);
+
+        $cache->set('ClassOne', 'hydrator', '<?php return new class {};');
+        $cache->clear();
+
+        $this->assertSame([3600], array_values(array_filter(
+            $pool->ttls,
+            static fn (string $key): bool => $key !== 'hydra.__generation',
+            ARRAY_FILTER_USE_KEY,
+        )));
+        $this->assertNull($pool->ttls['hydra.__generation']);
+    }
+
+    public function testInvalidPrefixIsRejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new Psr16CacheAdapter(new InMemoryPsr16Cache(), 'hydra:{bad}');
+    }
 }
 
 final class InMemoryPsr16Cache implements Psr16CacheInterface
 {
+    /** @var array<string, \DateInterval|int|null> */
+    public array $ttls = [];
+
     /** @var array<string, mixed> */
     private array $values = [];
 
@@ -79,13 +194,14 @@ final class InMemoryPsr16Cache implements Psr16CacheInterface
     public function set(string $key, mixed $value, \DateInterval|int|null $ttl = null): bool
     {
         $this->values[$key] = $value;
+        $this->ttls[$key] = $ttl;
 
         return true;
     }
 
     public function delete(string $key): bool
     {
-        unset($this->values[$key]);
+        unset($this->values[$key], $this->ttls[$key]);
 
         return true;
     }
@@ -93,6 +209,7 @@ final class InMemoryPsr16Cache implements Psr16CacheInterface
     public function clear(): bool
     {
         $this->values = [];
+        $this->ttls = [];
 
         return true;
     }
