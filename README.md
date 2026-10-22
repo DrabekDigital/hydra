@@ -86,9 +86,12 @@ use Psr\SimpleCache\CacheInterface as Psr16CacheInterface;
 $cache = new FileCache(sys_get_temp_dir());
 
 // Option B: any PSR-16 cache implementation from your DI container/framework
+// (ideally a pool dedicated to Hydra; a shared pool is safe too, see "Runtime code loading" below)
 /** @var Psr16CacheInterface $psr16 */
 $psr16 = $container->get(Psr16CacheInterface::class);
 $cache = new Psr16CacheAdapter($psr16);
+// optional: custom key prefix and TTL of generated code entries
+$cache = new Psr16CacheAdapter($psr16, prefix: 'hydra', ttl: 86400);
 
 // Hydrating from array to object
 $hydrator = new Hydrator($cache);
@@ -133,6 +136,25 @@ Because generated code is executable, treat cache storage as trusted runtime sur
 - do not share writable cache/temp directories with untrusted actors,
 - prefer app-scoped directories over generic system temp locations in production,
 - clear cache after deployments that change DTO structures.
+
+### Clearing a PSR-16 cache
+
+`Psr16CacheAdapter::clear()` (called by `Hydrator::clearCache()` / `Dehydrator::clearCache()` without a class name)
+never calls `clear()` on the wrapped PSR-16 pool, so it is safe to pass your application's shared pool – sessions,
+rate limits or other cached data stay untouched.
+
+Entries are stored under `{prefix}.{generation}.{hash}` keys, where the generation is a random token kept under
+`{prefix}.__generation` (stored without TTL). Clearing only writes a new random token, which makes all previously
+stored Hydra entries unreachable; the backend drops them once they expire or get evicted. If the token itself is
+evicted or deleted, a new random one is generated, so old entries never become reachable again.
+
+The token is read from the backend once per adapter instance. A clear made by another process (e.g. a deploy
+script) is picked up by adapter instances created afterwards, so restart long-running workers after clearing.
+Therefore:
+
+- prefer a dedicated pool (or namespace) for Hydra where your framework allows it,
+- when using a shared pool, pass a `ttl` so orphaned entries do not occupy storage forever,
+- use a distinct `prefix` for each Hydra instance that should be cleared independently within one pool.
 
 ## Errors handling
 
