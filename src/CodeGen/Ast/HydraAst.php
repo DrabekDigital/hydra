@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace DrabekDigital\Hydra\CodeGen\Ast;
 
+use DrabekDigital\Hydra\Errors\DehydrationError;
+use DrabekDigital\Hydra\Errors\DehydrationErrorCode;
+use DrabekDigital\Hydra\Errors\HydrationError;
+use DrabekDigital\Hydra\Errors\HydrationErrorCode;
+use DrabekDigital\Hydra\Exceptions\DehydrationFailure;
+use DrabekDigital\Hydra\Exceptions\HydrationFailure;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Stmt;
 
@@ -134,8 +140,8 @@ final class HydraAst
      */
     public static function hydrationError(string $code, Expr $message, Expr|string $key, Expr $path): Expr\New_
     {
-        return Ast::new('HydrationError', [
-            Ast::namedArg('code', Ast::classConst('HydrationErrorCode', $code)),
+        return Ast::new(HydrationError::class, [
+            Ast::namedArg('code', Ast::classConst(HydrationErrorCode::class, $code)),
             Ast::namedArg('programmerMessage', $message),
             Ast::namedArg('key', is_string($key) ? Ast::string($key) : $key),
             Ast::namedArg('fullPath', $path),
@@ -147,8 +153,8 @@ final class HydraAst
      */
     public static function dehydrationError(string $code, Expr $message, Expr|string $key, Expr $path): Expr\New_
     {
-        return Ast::new('DehydrationError', [
-            Ast::namedArg('code', Ast::classConst('DehydrationErrorCode', $code)),
+        return Ast::new(DehydrationError::class, [
+            Ast::namedArg('code', Ast::classConst(DehydrationErrorCode::class, $code)),
             Ast::namedArg('programmerMessage', $message),
             Ast::namedArg('key', is_string($key) ? Ast::string($key) : $key),
             Ast::namedArg('fullPath', $path),
@@ -277,7 +283,7 @@ final class HydraAst
     public static function wrapInHydrationCatch(array $stmts): Stmt\TryCatch
     {
         return Ast::tryCatch($stmts, [
-            Ast::catch_(['HydrationFailure'], 'e', [self::mergeErrors()]),
+            Ast::catch_([HydrationFailure::class], 'e', [self::mergeErrors()]),
         ]);
     }
 
@@ -289,7 +295,7 @@ final class HydraAst
     public static function wrapInDehydrationCatch(array $stmts): Stmt\TryCatch
     {
         return Ast::tryCatch($stmts, [
-            Ast::catch_(['DehydrationFailure'], 'e', [self::mergeErrors()]),
+            Ast::catch_([DehydrationFailure::class], 'e', [self::mergeErrors()]),
         ]);
     }
 
@@ -301,9 +307,9 @@ final class HydraAst
     public static function wrapHydrationRuntimeBoundary(array $stmts): Stmt\TryCatch
     {
         return Ast::tryCatch($stmts, [
-            Ast::catch_(['HydrationFailure'], 'e', [Ast::throw(Ast::var('e'))]),
+            Ast::catch_([HydrationFailure::class], 'e', [Ast::throw(Ast::var('e'))]),
             Ast::catch_(['\Throwable'], 'e', [
-                Ast::throw(Ast::new('HydrationFailure', [[self::hydrationError(
+                Ast::throw(Ast::new(HydrationFailure::class, [[self::hydrationError(
                     'TYPE_MISMATCH',
                     Ast::concat(
                         Ast::string('Runtime hydration failure: '),
@@ -324,9 +330,9 @@ final class HydraAst
     public static function wrapDehydrationRuntimeBoundary(array $stmts): Stmt\TryCatch
     {
         return Ast::tryCatch($stmts, [
-            Ast::catch_(['DehydrationFailure'], 'e', [Ast::throw(Ast::var('e'))]),
+            Ast::catch_([DehydrationFailure::class], 'e', [Ast::throw(Ast::var('e'))]),
             Ast::catch_(['\Throwable'], 'e', [
-                Ast::throw(Ast::new('DehydrationFailure', [[self::dehydrationError(
+                Ast::throw(Ast::new(DehydrationFailure::class, [[self::dehydrationError(
                     'TYPE_MISMATCH',
                     Ast::concat(
                         Ast::string('Runtime dehydration failure: '),
@@ -342,7 +348,7 @@ final class HydraAst
     /**
      * if (!empty($errors)) { throw new HydrationFailure($errors); }.
      */
-    public static function throwIfErrors(string $exceptionClass = 'HydrationFailure'): Stmt\If_
+    public static function throwIfErrors(string $exceptionClass = HydrationFailure::class): Stmt\If_
     {
         return Ast::if(
             Ast::not(Ast::funcCall('empty', [Ast::var('errors')])),

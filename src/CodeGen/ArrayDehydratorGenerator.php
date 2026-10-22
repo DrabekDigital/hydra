@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DrabekDigital\Hydra\CodeGen;
 
 use DrabekDigital\Hydra\CodeGen\Ast\Ast;
+use DrabekDigital\Hydra\Runtime\ArrayDehydratorRuntime;
 use PhpParser\Node;
 use PhpParser\Node\Stmt;
 use PhpParser\PrettyPrinter\Standard as PrettyPrinter;
@@ -28,35 +29,9 @@ class ArrayDehydratorGenerator
      */
     public function generate(array $possibleClasses): string
     {
-        $stmts = [
-            ...$this->generateUseStatements($possibleClasses),
-            $this->generateReturnAnonymousClass($possibleClasses),
-        ];
+        $stmts = [$this->generateReturnAnonymousClass($possibleClasses)];
 
         return "<?php declare(strict_types=1);\n\n".$this->printer->prettyPrint($stmts);
-    }
-
-    /**
-     * @param class-string[] $classes
-     *
-     * @return Stmt[]
-     */
-    private function generateUseStatements(array $classes): array
-    {
-        $stmts = [
-            Ast::use('DrabekDigital\Hydra\Errors\DehydrationError'),
-            Ast::use('DrabekDigital\Hydra\Errors\DehydrationErrorCode'),
-            Ast::use('DrabekDigital\Hydra\Exceptions\DehydrationFailure'),
-            Ast::use('DrabekDigital\Hydra\Runtime\ArrayDehydratorRuntime'),
-        ];
-
-        foreach ($classes as $class) {
-            if (GenerationContext::typeIsNamespaced($class)) {
-                $stmts[] = Ast::use($class);
-            }
-        }
-
-        return $stmts;
     }
 
     /**
@@ -65,7 +40,7 @@ class ArrayDehydratorGenerator
     private function generateReturnAnonymousClass(array $possibleClasses): Stmt\Return_
     {
         $classNode = new Stmt\Class_(null, [
-            'implements' => [new Node\Name('ArrayDehydratorRuntime')],
+            'implements' => [Ast::className(ArrayDehydratorRuntime::class)],
             'stmts' => [
                 $this->generateNestedDehydratorsProperty(),
                 $this->generateSetNestedDehydratorMethod(),
@@ -140,8 +115,6 @@ class ArrayDehydratorGenerator
         $lastElse = null;
 
         foreach (array_reverse($possibleClasses) as $class) {
-            $shortName = GenerationContext::getShortName($class);
-
             $thenStmts = [
                 Ast::expr(Ast::assign(
                     Ast::arrayAccess(Ast::var('result'), null),
@@ -166,13 +139,13 @@ class ArrayDehydratorGenerator
             if ($ifChain === null) {
                 // First (innermost) - this becomes the else of the previous
                 $ifChain = Ast::if(
-                    new Node\Expr\Instanceof_(Ast::var('object'), new Node\Name($shortName)),
+                    new Node\Expr\Instanceof_(Ast::var('object'), Ast::className($class)),
                     $thenStmts
                 );
             } else {
                 // Wrap previous in else
                 $newIf = Ast::if(
-                    new Node\Expr\Instanceof_(Ast::var('object'), new Node\Name($shortName)),
+                    new Node\Expr\Instanceof_(Ast::var('object'), Ast::className($class)),
                     $thenStmts,
                     [$ifChain]
                 );

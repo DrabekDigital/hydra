@@ -42,7 +42,7 @@ final class CustomMapperTypeHandler implements TypeHandler
         }
         $mapperClass = $mapperAttr->getMapperClass();
 
-        // Register mapper class for use statement and instantiation
+        // Register mapper class
         $context->registerNestedType($mapperClass);
 
         if ($property->isUndefinable) {
@@ -118,8 +118,6 @@ final class CustomMapperTypeHandler implements TypeHandler
 
     private function mapperHydrateCall(string $mapperClass, string $key, Expr $path): Expr\MethodCall
     {
-        $shortName = GenerationContext::getShortName($mapperClass);
-
         return Ast::methodCall(
             Ast::arrayAccess(
                 Ast::property(Ast::var('this'), 'customMappers'),
@@ -365,7 +363,7 @@ final class CustomMapperTypeHandler implements TypeHandler
         $refProp = Ast::assign(
             Ast::var("ref_{$name}"),
             Ast::new('\ReflectionProperty', [
-                Ast::classConst($ctx->shortName, 'class'),
+                Ast::classConst($ctx->className, 'class'),
                 Ast::string($name),
             ])
         );

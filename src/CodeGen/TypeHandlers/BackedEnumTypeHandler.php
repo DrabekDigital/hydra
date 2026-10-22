@@ -49,25 +49,24 @@ final class BackedEnumTypeHandler implements TypeHandler
         if ($enumClass === null) {
             throw new \InvalidArgumentException("Enum type is missing for property '{$name}'");
         }
-        $shortEnum = GenerationContext::getShortName($enumClass);
         $backingType = $this->getBackingType($enumClass);
 
-        // Register enum type for use statement
+        // Register enum type
         $context->registerNestedType($enumClass);
 
         if ($property->isUndefinable) {
-            return $this->generateUndefinable($property, $key, $name, $path, $shortEnum, $backingType);
+            return $this->generateUndefinable($property, $key, $name, $path, $enumClass, $backingType);
         }
 
         if ($property->isRequired()) {
-            return $this->generateRequired($property, $key, $name, $path, $shortEnum, $backingType);
+            return $this->generateRequired($property, $key, $name, $path, $enumClass, $backingType);
         }
 
         if ($property->isNullable && !$property->hasAnyDefault()) {
-            return $this->generateNullableRequiredKey($property, $key, $name, $path, $shortEnum, $backingType);
+            return $this->generateNullableRequiredKey($property, $key, $name, $path, $enumClass, $backingType);
         }
 
-        return $this->generateWithDefault($property, $key, $name, $path, $shortEnum, $backingType);
+        return $this->generateWithDefault($property, $key, $name, $path, $enumClass, $backingType);
     }
 
     /**
@@ -82,7 +81,7 @@ final class BackedEnumTypeHandler implements TypeHandler
             throw new \InvalidArgumentException("Enum type is missing for property '{$name}'");
         }
 
-        // Register enum type for use statement
+        // Register enum type
         $context->registerNestedType($enumClass);
 
         if ($property->isUndefinable) {
@@ -136,7 +135,7 @@ final class BackedEnumTypeHandler implements TypeHandler
     /**
      * @return Stmt[]
      */
-    private function generateRequired(PropertyMetadata $prop, string $key, string $name, Expr $path, string $shortEnum, string $backingType): array
+    private function generateRequired(PropertyMetadata $prop, string $key, string $name, Expr $path, string $enumClass, string $backingType): array
     {
         $thenStmts = [
             HydraAst::appendHydrationError('MISSING_KEY', Ast::string("Missing required key '{$key}'"), $name, $path),
@@ -160,7 +159,7 @@ final class BackedEnumTypeHandler implements TypeHandler
                 [
                     Ast::expr(Ast::assign(
                         Ast::var("enumValue_{$name}"),
-                        Ast::staticCall($shortEnum, 'tryFrom', [HydraAst::dataAccess($key)])
+                        Ast::staticCall($enumClass, 'tryFrom', [HydraAst::dataAccess($key)])
                     )),
                     Ast::if(
                         Ast::identical(Ast::var("enumValue_{$name}"), Ast::null()),
@@ -187,7 +186,7 @@ final class BackedEnumTypeHandler implements TypeHandler
     /**
      * @return Stmt[]
      */
-    private function generateNullableRequiredKey(PropertyMetadata $prop, string $key, string $name, Expr $path, string $shortEnum, string $backingType): array
+    private function generateNullableRequiredKey(PropertyMetadata $prop, string $key, string $name, Expr $path, string $enumClass, string $backingType): array
     {
         $thenStmts = [
             HydraAst::appendHydrationError('MISSING_KEY', Ast::string("Missing key '{$key}' (nullable but key must exist)"), $name, $path),
@@ -214,7 +213,7 @@ final class BackedEnumTypeHandler implements TypeHandler
                         [
                             Ast::expr(Ast::assign(
                                 Ast::var("enumValue_{$name}"),
-                                Ast::staticCall($shortEnum, 'tryFrom', [HydraAst::dataAccess($key)])
+                                Ast::staticCall($enumClass, 'tryFrom', [HydraAst::dataAccess($key)])
                             )),
                             Ast::if(
                                 Ast::identical(Ast::var("enumValue_{$name}"), Ast::null()),
@@ -243,13 +242,13 @@ final class BackedEnumTypeHandler implements TypeHandler
     /**
      * @return Stmt[]
      */
-    private function generateWithDefault(PropertyMetadata $prop, string $key, string $name, Expr $path, string $shortEnum, string $backingType): array
+    private function generateWithDefault(PropertyMetadata $prop, string $key, string $name, Expr $path, string $enumClass, string $backingType): array
     {
         $defaultValue = $prop->getEffectiveDefault();
 
         // Handle enum default values - generate EnumClass::CaseName
         if ($defaultValue instanceof \BackedEnum) {
-            $default = Ast::classConst($shortEnum, $defaultValue->name);
+            $default = Ast::classConst($enumClass, $defaultValue->name);
         } else {
             $default = Ast::toExpr($defaultValue);
         }
@@ -257,7 +256,7 @@ final class BackedEnumTypeHandler implements TypeHandler
         $tryFromAndValidate = [
             Ast::expr(Ast::assign(
                 Ast::var("enumValue_{$name}"),
-                Ast::staticCall($shortEnum, 'tryFrom', [HydraAst::dataAccess($key)])
+                Ast::staticCall($enumClass, 'tryFrom', [HydraAst::dataAccess($key)])
             )),
             Ast::if(
                 Ast::identical(Ast::var("enumValue_{$name}"), Ast::null()),
@@ -328,12 +327,12 @@ final class BackedEnumTypeHandler implements TypeHandler
     /**
      * @return Stmt[]
      */
-    private function generateUndefinable(PropertyMetadata $prop, string $key, string $name, Expr $path, string $shortEnum, string $backingType): array
+    private function generateUndefinable(PropertyMetadata $prop, string $key, string $name, Expr $path, string $enumClass, string $backingType): array
     {
         $tryFromAndValidate = [
             Ast::expr(Ast::assign(
                 Ast::var("enumValue_{$name}"),
-                Ast::staticCall($shortEnum, 'tryFrom', [HydraAst::dataAccess($key)])
+                Ast::staticCall($enumClass, 'tryFrom', [HydraAst::dataAccess($key)])
             )),
             Ast::if(
                 Ast::identical(Ast::var("enumValue_{$name}"), Ast::null()),
@@ -411,7 +410,7 @@ final class BackedEnumTypeHandler implements TypeHandler
         $refProp = Ast::assign(
             Ast::var("ref_{$name}"),
             Ast::new('\ReflectionProperty', [
-                Ast::classConst($ctx->shortName, 'class'),
+                Ast::classConst($ctx->className, 'class'),
                 Ast::string($name),
             ])
         );

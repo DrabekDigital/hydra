@@ -25,6 +25,19 @@ final class Ast
     }
 
     // ─────────────────────────────────────────────────────────────
+    // Names
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Fully qualified class name (\Foo\Bar), so generated code never depends on imports.
+     * The leading backslash in $class is optional.
+     */
+    public static function className(string $class): Node\Name\FullyQualified
+    {
+        return new Node\Name\FullyQualified(ltrim($class, '\\'));
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // Expressions - Variables & Literals
     // ─────────────────────────────────────────────────────────────
 
@@ -75,7 +88,7 @@ final class Ast
 
     public static function classConst(string $class, string $const): Expr\ClassConstFetch
     {
-        return new Expr\ClassConstFetch(new Node\Name($class), $const);
+        return new Expr\ClassConstFetch(self::className($class), $const);
     }
 
     /**
@@ -111,7 +124,7 @@ final class Ast
 
     public static function staticProperty(string $class, string $name): Expr\StaticPropertyFetch
     {
-        return new Expr\StaticPropertyFetch(new Node\Name($class), $name);
+        return new Expr\StaticPropertyFetch(self::className($class), $name);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -131,7 +144,7 @@ final class Ast
      */
     public static function staticCall(string $class, string $method, array $args = []): Expr\StaticCall
     {
-        return new Expr\StaticCall(new Node\Name($class), $method, self::toArgs($args));
+        return new Expr\StaticCall(self::className($class), $method, self::toArgs($args));
     }
 
     /**
@@ -147,7 +160,7 @@ final class Ast
      */
     public static function new(string $class, array $args = []): Expr\New_
     {
-        return new Expr\New_(new Node\Name($class), self::toArgs($args));
+        return new Expr\New_(self::className($class), self::toArgs($args));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -292,12 +305,12 @@ final class Ast
     }
 
     /**
-     * @param string[] $types e.g. ['DehydrationError', '\Throwable']
+     * @param string[] $types e.g. [DehydrationFailure::class, '\Throwable']
      * @param Stmt[]   $stmts
      */
     public static function catch_(array $types, string $varName, array $stmts): Stmt\Catch_
     {
-        $typeNames = array_map(fn ($t) => new Node\Name($t), $types);
+        $typeNames = array_map(fn ($t) => self::className($t), $types);
 
         return new Stmt\Catch_($typeNames, new Expr\Variable($varName), $stmts);
     }
@@ -311,13 +324,6 @@ final class Ast
             'keyVar' => $key,
             'stmts' => $stmts,
         ]);
-    }
-
-    public static function use(string $name, ?string $alias = null): Stmt\Use_
-    {
-        $useUse = new Node\UseItem(new Node\Name($name), $alias);
-
-        return new Stmt\Use_([$useUse]);
     }
 
     public static function comment(string $text): Stmt\Nop

@@ -621,7 +621,6 @@ class ListAndMapTypeHandlerTest extends TestCase
     {
         return new GenerationContext(
             className: \stdClass::class,
-            shortName: 'stdClass',
             hasUndefinable: false,
             properties: $properties,
         );

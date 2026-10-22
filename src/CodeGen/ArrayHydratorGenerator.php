@@ -6,6 +6,8 @@ namespace DrabekDigital\Hydra\CodeGen;
 
 use DrabekDigital\Hydra\CodeGen\Ast\Ast;
 use DrabekDigital\Hydra\CodeGen\Ast\HydraAst;
+use DrabekDigital\Hydra\Exceptions\HydrationFailure;
+use DrabekDigital\Hydra\Runtime\ArrayHydratorRuntime;
 use PhpParser\Node;
 use PhpParser\Node\Stmt;
 use PhpParser\PrettyPrinter\Standard as PrettyPrinter;
@@ -27,12 +29,7 @@ class ArrayHydratorGenerator
      */
     public function generateSimple(string $itemClass): string
     {
-        $shortName = GenerationContext::getShortName($itemClass);
-
-        $stmts = [
-            ...$this->generateUseStatements($itemClass),
-            $this->generateReturnAnonymousClass($itemClass, $shortName, null, null),
-        ];
+        $stmts = [$this->generateReturnAnonymousClass($itemClass, null, null)];
 
         return "<?php declare(strict_types=1);\n\n".$this->printer->prettyPrint($stmts);
     }
@@ -44,54 +41,9 @@ class ArrayHydratorGenerator
      */
     public function generateDiscriminated(string $discriminator, array $mapping): string
     {
-        $stmts = [
-            ...$this->generateDiscriminatedUseStatements($mapping),
-            $this->generateReturnAnonymousClass(null, null, $discriminator, $mapping),
-        ];
+        $stmts = [$this->generateReturnAnonymousClass(null, $discriminator, $mapping)];
 
         return "<?php declare(strict_types=1);\n\n".$this->printer->prettyPrint($stmts);
-    }
-
-    /**
-     * @return Stmt[]
-     */
-    private function generateUseStatements(string $itemClass): array
-    {
-        $stmts = [
-            Ast::use('DrabekDigital\Hydra\Errors\HydrationError'),
-            Ast::use('DrabekDigital\Hydra\Errors\HydrationErrorCode'),
-            Ast::use('DrabekDigital\Hydra\Exceptions\HydrationFailure'),
-            Ast::use('DrabekDigital\Hydra\Runtime\ArrayHydratorRuntime'),
-        ];
-
-        if (GenerationContext::typeIsNamespaced($itemClass)) {
-            $stmts[] = Ast::use($itemClass);
-        }
-
-        return $stmts;
-    }
-
-    /**
-     * @param array<string, class-string> $mapping
-     *
-     * @return Stmt[]
-     */
-    private function generateDiscriminatedUseStatements(array $mapping): array
-    {
-        $stmts = [
-            Ast::use('DrabekDigital\Hydra\Errors\HydrationError'),
-            Ast::use('DrabekDigital\Hydra\Errors\HydrationErrorCode'),
-            Ast::use('DrabekDigital\Hydra\Exceptions\HydrationFailure'),
-            Ast::use('DrabekDigital\Hydra\Runtime\ArrayHydratorRuntime'),
-        ];
-
-        foreach ($mapping as $class) {
-            if (GenerationContext::typeIsNamespaced($class)) {
-                $stmts[] = Ast::use($class);
-            }
-        }
-
-        return $stmts;
     }
 
     /**
@@ -99,16 +51,15 @@ class ArrayHydratorGenerator
      */
     private function generateReturnAnonymousClass(
         ?string $itemClass,
-        ?string $shortName,
         ?string $discriminator,
         ?array $mapping,
     ): Stmt\Return_ {
         $classNode = new Stmt\Class_(null, [
-            'implements' => [new Node\Name('ArrayHydratorRuntime')],
+            'implements' => [Ast::className(ArrayHydratorRuntime::class)],
             'stmts' => [
                 $this->generateNestedHydratorsProperty(),
                 $this->generateSetNestedHydratorMethod(),
-                $this->generateHydrateMethod($itemClass, $shortName, $discriminator, $mapping),
+                $this->generateHydrateMethod($itemClass, $discriminator, $mapping),
             ],
         ]);
 
@@ -150,7 +101,6 @@ class ArrayHydratorGenerator
      */
     private function generateHydrateMethod(
         ?string $itemClass,
-        ?string $shortName,
         ?string $discriminator,
         ?array $mapping,
     ): Stmt\ClassMethod {
@@ -168,7 +118,7 @@ class ArrayHydratorGenerator
         }
 
         // Throw if errors
-        $stmts[] = HydraAst::throwIfErrors('HydrationFailure');
+        $stmts[] = HydraAst::throwIfErrors(HydrationFailure::class);
         $stmts[] = Ast::return(Ast::var('result'));
 
         return Ast::factory()->method('hydrate')
@@ -207,17 +157,17 @@ class ArrayHydratorGenerator
                 [
                     Ast::expr(Ast::assign(
                         Ast::arrayAccess(Ast::var('errors'), null),
-                        Ast::new('HydrationError', [
-                            Ast::namedArg('code', Ast::classConst('HydrationErrorCode', 'TYPE_MISMATCH')),
-                            Ast::namedArg('programmerMessage', Ast::concat(
+                        HydraAst::hydrationError(
+                            'TYPE_MISMATCH',
+                            Ast::concat(
                                 Ast::string('Expected array at index '),
                                 Ast::var('index'),
                                 Ast::string(', got '),
                                 Ast::funcCall('gettype', [Ast::var('item')])
-                            )),
-                            Ast::namedArg('key', Ast::funcCall('strval', [Ast::var('index')])),
-                            Ast::namedArg('fullPath', Ast::var('itemPath')),
-                        ])
+                            ),
+                            Ast::funcCall('strval', [Ast::var('index')]),
+                            Ast::var('itemPath')
+                        )
                     )),
                 ],
                 [
@@ -281,17 +231,17 @@ class ArrayHydratorGenerator
                 [
                     Ast::expr(Ast::assign(
                         Ast::arrayAccess(Ast::var('errors'), null),
-                        Ast::new('HydrationError', [
-                            Ast::namedArg('code', Ast::classConst('HydrationErrorCode', 'TYPE_MISMATCH')),
-                            Ast::namedArg('programmerMessage', Ast::concat(
+                        HydraAst::hydrationError(
+                            'TYPE_MISMATCH',
+                            Ast::concat(
                                 Ast::string('Expected array at index '),
                                 Ast::var('index'),
                                 Ast::string(', got '),
                                 Ast::funcCall('gettype', [Ast::var('item')])
-                            )),
-                            Ast::namedArg('key', Ast::funcCall('strval', [Ast::var('index')])),
-                            Ast::namedArg('fullPath', Ast::var('itemPath')),
-                        ])
+                            ),
+                            Ast::funcCall('strval', [Ast::var('index')]),
+                            Ast::var('itemPath')
+                        )
                     )),
                 ],
                 [
@@ -301,12 +251,12 @@ class ArrayHydratorGenerator
                         [
                             Ast::expr(Ast::assign(
                                 Ast::arrayAccess(Ast::var('errors'), null),
-                                Ast::new('HydrationError', [
-                                    Ast::namedArg('code', Ast::classConst('HydrationErrorCode', 'MISSING_KEY')),
-                                    Ast::namedArg('programmerMessage', Ast::string("Missing discriminator '{$discriminator}'")),
-                                    Ast::namedArg('key', Ast::string($discriminator)),
-                                    Ast::namedArg('fullPath', Ast::var('itemPath')),
-                                ])
+                                HydraAst::hydrationError(
+                                    'MISSING_KEY',
+                                    Ast::string("Missing discriminator '{$discriminator}'"),
+                                    Ast::string($discriminator),
+                                    Ast::var('itemPath')
+                                )
                             )),
                         ],
                         [
@@ -360,15 +310,15 @@ class ArrayHydratorGenerator
             [
                 Ast::expr(Ast::assign(
                     Ast::arrayAccess(Ast::var('errors'), null),
-                    Ast::new('HydrationError', [
-                        Ast::namedArg('code', Ast::classConst('HydrationErrorCode', 'INVALID_VALUE')),
-                        Ast::namedArg('programmerMessage', Ast::concat(
+                    HydraAst::hydrationError(
+                        'INVALID_VALUE',
+                        Ast::concat(
                             Ast::string("Unknown discriminator value for '{$discriminator}': "),
                             Ast::funcCall('json_encode', [Ast::var('discriminatorValue')])
-                        )),
-                        Ast::namedArg('key', Ast::string($discriminator)),
-                        Ast::namedArg('fullPath', Ast::var('itemPath')),
-                    ])
+                        ),
+                        Ast::string($discriminator),
+                        Ast::var('itemPath')
+                    )
                 )),
                 new Stmt\Break_(),
             ]

@@ -25,7 +25,6 @@ final class GenerationContext
      */
     public function __construct(
         public readonly string $className,
-        public readonly string $shortName,
         public readonly bool $hasUndefinable,
         public readonly array $properties,
         public readonly bool $isPropertyOnly = false,
@@ -118,32 +117,6 @@ final class GenerationContext
         $skip = $property->getAttribute(Skip::class);
 
         return $skip instanceof Skip && $skip->dehydration;
-    }
-
-    /**
-     * Check if class is namespaced (needs use statement).
-     */
-    public function isNamespaced(): bool
-    {
-        return str_contains($this->className, '\\');
-    }
-
-    /**
-     * Check if a type name is namespaced.
-     */
-    public static function typeIsNamespaced(string $typeName): bool
-    {
-        return str_contains($typeName, '\\');
-    }
-
-    /**
-     * Get short class name from fully qualified name.
-     */
-    public static function getShortName(string $className): string
-    {
-        $parts = explode('\\', $className);
-
-        return end($parts);
     }
 
     private function propertyByName(string $propertyName): ?PropertyMetadata

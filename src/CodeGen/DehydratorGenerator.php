@@ -18,8 +18,10 @@ use DrabekDigital\Hydra\CodeGen\TypeHandlers\NestedObjectTypeHandler;
 use DrabekDigital\Hydra\CodeGen\TypeHandlers\ObjectTypeHandler;
 use DrabekDigital\Hydra\CodeGen\TypeHandlers\ScalarTypeHandler;
 use DrabekDigital\Hydra\CodeGen\TypeHandlers\TypeHandlerRegistry;
+use DrabekDigital\Hydra\Exceptions\DehydrationFailure;
 use DrabekDigital\Hydra\Metadata\ClassAnalyzer;
 use DrabekDigital\Hydra\Metadata\PropertyMetadata;
+use DrabekDigital\Hydra\Runtime\DehydratorRuntime;
 use PhpParser\Node;
 use PhpParser\Node\Stmt;
 use PhpParser\PrettyPrinter\Standard as PrettyPrinter;
@@ -48,10 +50,7 @@ class DehydratorGenerator
         // Single pass: handlers register nested types and return statements
         $propertyStmts = $this->generateAllPropertyStatements($context);
 
-        $stmts = [
-            ...$this->generateUseStatements($context),
-            $this->generateReturnAnonymousClass($context, $propertyStmts),
-        ];
+        $stmts = [$this->generateReturnAnonymousClass($context, $propertyStmts)];
 
         return "<?php declare(strict_types=1);\n\n".$this->printer->prettyPrint($stmts);
     }
@@ -95,7 +94,6 @@ class DehydratorGenerator
 
         return new GenerationContext(
             className: $className,
-            shortName: GenerationContext::getShortName($className),
             hasUndefinable: $hasUndefinable,
             properties: $properties,
             isPropertyOnly: $isPropertyOnly,
@@ -121,41 +119,13 @@ class DehydratorGenerator
     }
 
     /**
-     * @return Stmt[]
-     */
-    private function generateUseStatements(GenerationContext $context): array
-    {
-        $stmts = [
-            Ast::use('DrabekDigital\Hydra\Errors\DehydrationError'),
-            Ast::use('DrabekDigital\Hydra\Errors\DehydrationErrorCode'),
-            Ast::use('DrabekDigital\Hydra\Exceptions\DehydrationFailure'),
-        ];
-
-        $stmts[] = Ast::use('DrabekDigital\Hydra\Runtime\DehydratorRuntime');
-
-        // Add use for main class if namespaced
-        if ($context->isNamespaced()) {
-            $stmts[] = Ast::use($context->className);
-        }
-
-        // Add uses for nested types
-        foreach ($context->getNestedTypes() as $type) {
-            if (GenerationContext::typeIsNamespaced($type) && $type !== $context->className) {
-                $stmts[] = Ast::use($type);
-            }
-        }
-
-        return $stmts;
-    }
-
-    /**
      * @param Stmt[] $propertyStmts
      */
     private function generateReturnAnonymousClass(GenerationContext $context, array $propertyStmts): Stmt\Return_
     {
         // Build anonymous class manually since BuilderFactory doesn't support it
         $classNode = new Stmt\Class_(null, [
-            'implements' => [new Node\Name('DehydratorRuntime')],
+            'implements' => [Ast::className(DehydratorRuntime::class)],
             'stmts' => [
                 $this->generateNestedDehydratorsProperty(),
                 $this->generateCustomMappersProperty(),
@@ -273,7 +243,7 @@ class DehydratorGenerator
             Ast::expr(Ast::assign(Ast::var('errors'), Ast::array([]))),
             Ast::expr(Ast::assign(Ast::var('result'), Ast::array([]))),
             ...$propertyStmts,
-            HydraAst::throwIfErrors('DehydrationFailure'),
+            HydraAst::throwIfErrors(DehydrationFailure::class),
             Ast::return(Ast::var('result')),
         ];
         $stmts = [HydraAst::wrapDehydrationRuntimeBoundary($runtimeStmts)];
