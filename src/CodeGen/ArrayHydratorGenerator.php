@@ -137,7 +137,7 @@ class ArrayHydratorGenerator
             throw new \InvalidArgumentException('Item class must be provided for simple array hydrator');
         }
         // foreach ($data as $item) {
-        //     $itemPath = $path ? "$path[$index]" : "[$index]";
+        //     $itemPath = sprintf('%s[%d]', $path, $index);
         //     if (!is_array($item)) { error }
         //     $result[] = $this->nestedHydrators['Class']->hydrate($item, $itemPath);
         //     $index++;
@@ -146,11 +146,7 @@ class ArrayHydratorGenerator
         $loopBody = [
             Ast::expr(Ast::assign(
                 Ast::var('itemPath'),
-                Ast::ternary(
-                    Ast::var('path'),
-                    Ast::concat(Ast::var('path'), Ast::string('[$index]')),
-                    Ast::concat(Ast::string('['), Ast::var('index'), Ast::string(']'))
-                )
+                HydraAst::indexedPath(Ast::var('path'), Ast::var('index'))
             )),
             Ast::if(
                 Ast::not(Ast::funcCall('is_array', [Ast::var('item')])),
@@ -220,11 +216,7 @@ class ArrayHydratorGenerator
         $loopBody = [
             Ast::expr(Ast::assign(
                 Ast::var('itemPath'),
-                Ast::ternary(
-                    Ast::var('path'),
-                    Ast::concat(Ast::var('path'), Ast::string('[$index]')),
-                    Ast::concat(Ast::string('['), Ast::var('index'), Ast::string(']'))
-                )
+                HydraAst::indexedPath(Ast::var('path'), Ast::var('index'))
             )),
             Ast::if(
                 Ast::not(Ast::funcCall('is_array', [Ast::var('item')])),

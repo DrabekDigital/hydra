@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DrabekDigital\Hydra\CodeGen;
 
 use DrabekDigital\Hydra\CodeGen\Ast\Ast;
+use DrabekDigital\Hydra\CodeGen\Ast\HydraAst;
 use DrabekDigital\Hydra\Runtime\ArrayDehydratorRuntime;
 use PhpParser\Node;
 use PhpParser\Node\Stmt;
@@ -126,11 +127,7 @@ class ArrayDehydratorGenerator
                         'dehydrate',
                         [
                             Ast::var('object'),
-                            Ast::ternary(
-                                Ast::var('path'),
-                                Ast::concat(Ast::var('path'), Ast::string('[$index]')),
-                                Ast::concat(Ast::string('['), Ast::var('index'), Ast::string(']'))
-                            ),
+                            HydraAst::indexedPath(Ast::var('path'), Ast::var('index')),
                         ]
                     )
                 )),
@@ -167,11 +164,7 @@ class ArrayDehydratorGenerator
                         'dehydrate',
                         [
                             Ast::var('object'),
-                            Ast::ternary(
-                                Ast::var('path'),
-                                Ast::concat(Ast::var('path'), Ast::string('[$index]')),
-                                Ast::concat(Ast::string('['), Ast::var('index'), Ast::string(']'))
-                            ),
+                            HydraAst::indexedPath(Ast::var('path'), Ast::var('index')),
                         ]
                     )
                 )),

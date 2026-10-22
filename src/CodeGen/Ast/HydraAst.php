@@ -131,6 +131,14 @@ final class HydraAst
         );
     }
 
+    /**
+     * sprintf('%s[%d]', $path, $index).
+     */
+    public static function indexedPath(Expr $path, Expr $index): Expr\FuncCall
+    {
+        return Ast::funcCall('sprintf', [Ast::string('%s[%d]'), $path, $index]);
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Error Handling
     // ─────────────────────────────────────────────────────────────
