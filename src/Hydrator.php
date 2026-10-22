@@ -11,6 +11,7 @@ use DrabekDigital\Hydra\Attributes\MapperAttribute;
 use DrabekDigital\Hydra\Attributes\ObjectType;
 use DrabekDigital\Hydra\Caching\CacheInterface;
 use DrabekDigital\Hydra\CodeGen\ArrayHydratorGenerator;
+use DrabekDigital\Hydra\CodeGen\GeneratorVersion;
 use DrabekDigital\Hydra\CodeGen\HydratorGenerator;
 use DrabekDigital\Hydra\Exceptions\HydrationFailure;
 use DrabekDigital\Hydra\Mappers\Mapper;
@@ -26,6 +27,7 @@ class Hydrator
     private readonly HydratorGenerator $generator;
     private readonly ArrayHydratorGenerator $arrayGenerator;
     private readonly ClassAnalyzer $analyzer;
+    private readonly string $generatorVersion;
 
     /** @var array<string, HydratorRuntime> */
     private array $loadedHydrators = [];
@@ -46,7 +48,10 @@ class Hydrator
         private readonly CacheInterface $cache,
         ?ClassAnalyzer $analyzer = null,
         ?HydratorGenerator $generator = null,
+        ?string $generatorVersion = null,
     ) {
+        $this->generatorVersion = $generatorVersion ?? GeneratorVersion::GENERATOR_VERSION;
+        GeneratorVersion::assertValid($this->generatorVersion);
         $this->analyzer = $analyzer ?? new ClassAnalyzer();
         $this->generator = $generator ?? new HydratorGenerator($this->analyzer);
         $this->arrayGenerator = new ArrayHydratorGenerator();
@@ -129,11 +134,12 @@ class Hydrator
     public function clearCache(?string $className = null): void
     {
         if ($className !== null) {
-            $cacheKey = "{$className}_{$this->getStructureHash($className)}";
+            $cacheKey = $this->classCacheKey($className);
+            $simpleArrayKey = $this->simpleArrayCacheKey($className);
+
             $this->cache->invalidate($cacheKey, self::CACHE_TYPE);
             unset($this->loadedHydrators[$cacheKey], $this->structureHashes[$className]);
 
-            $simpleArrayKey = "simple_{$className}_{$this->analyzer->getStructureHash($className)}";
             $this->cache->invalidate($simpleArrayKey, self::CACHE_TYPE_ARRAY);
             unset($this->loadedArrayHydrators[$simpleArrayKey]);
 
@@ -156,8 +162,7 @@ class Hydrator
      */
     private function getSimpleArrayHydrator(string $className, bool $bypassCache = false): ArrayHydratorRuntime
     {
-        $structureHash = $this->getStructureHash($className);
-        $cacheKey = "simple_{$className}_{$structureHash}";
+        $cacheKey = $this->simpleArrayCacheKey($className);
         $this->registerArrayCacheKey($cacheKey, [$className]);
 
         if (!$bypassCache && isset($this->loadedArrayHydrators[$cacheKey])) {
@@ -194,7 +199,7 @@ class Hydrator
         foreach ($mapping as $value => $class) {
             $mappingHashes[$value] = $class.'_'.$this->getStructureHash($class);
         }
-        $cacheKey = "disc_{$discriminator}_".md5(serialize($mappingHashes));
+        $cacheKey = $this->versionedCacheKey("disc_{$discriminator}_".md5(serialize($mappingHashes)));
         $this->registerArrayCacheKey($cacheKey, array_values($mapping));
 
         if (!$bypassCache && isset($this->loadedArrayHydrators[$cacheKey])) {
@@ -225,8 +230,7 @@ class Hydrator
 
     private function getHydrator(string $className, bool $bypassCache = false): HydratorRuntime
     {
-        $structureHash = $this->getStructureHash($className);
-        $cacheKey = "{$className}_{$structureHash}";
+        $cacheKey = $this->classCacheKey($className);
 
         if (!$bypassCache && isset($this->loadedHydrators[$cacheKey])) {
             return $this->loadedHydrators[$cacheKey];
@@ -252,6 +256,21 @@ class Hydrator
         $this->loadedHydrators[$cacheKey] = $hydrator;
 
         return $hydrator;
+    }
+
+    private function classCacheKey(string $className): string
+    {
+        return $this->versionedCacheKey("{$className}_{$this->getStructureHash($className)}");
+    }
+
+    private function simpleArrayCacheKey(string $className): string
+    {
+        return $this->versionedCacheKey("simple_{$className}_{$this->getStructureHash($className)}");
+    }
+
+    private function versionedCacheKey(string $key): string
+    {
+        return GeneratorVersion::cacheKey($key, $this->generatorVersion);
     }
 
     private function getStructureHash(string $className): string
