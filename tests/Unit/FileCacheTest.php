@@ -77,6 +77,120 @@ class FileCacheTest extends TestCase
         $this->cache->set('InvalidPayload', 'hydrator', '<?php return [1, 2, 3];');
 
         $this->assertNull($this->cache->get('InvalidPayload', 'hydrator'));
+        $this->assertFalse($this->cache->has('InvalidPayload', 'hydrator'));
+    }
+
+    public function testGetReturnsNullAndRemovesFileWithParseError(): void
+    {
+        $this->cache->set('Truncated', 'hydrator', '<?php return new class { public function test(');
+
+        $this->assertNull($this->cache->get('Truncated', 'hydrator'));
+        $this->assertFalse($this->cache->has('Truncated', 'hydrator'));
+    }
+
+    public function testGetReturnsNullAndRemovesFileThrowingError(): void
+    {
+        $this->cache->set('Throwing', 'hydrator', '<?php return \DrabekDigital\Hydra\Missing\undefinedFunction();');
+
+        $this->assertNull($this->cache->get('Throwing', 'hydrator'));
+        $this->assertFalse($this->cache->has('Throwing', 'hydrator'));
+    }
+
+    // =========================================================================
+    // Atomic Writes & Failure Handling
+    // =========================================================================
+
+    public function testSetLeavesNoTemporaryFiles(): void
+    {
+        $this->cache->set('TestClass', 'hydrator', '<?php return new class {};');
+        $this->cache->set('TestClass', 'hydrator', '<?php return new class {};');
+
+        $files = array_values(array_diff(scandir($this->cacheDir.'/hydrator') ?: [], ['.', '..']));
+
+        $this->assertCount(1, $files);
+        $this->assertStringEndsWith('.php', $files[0]);
+    }
+
+    public function testSetCreatesFileReadableByOthers(): void
+    {
+        $previousUmask = umask(0o022);
+
+        try {
+            $this->cache->set('TestClass', 'hydrator', '<?php return new class {};');
+        } finally {
+            umask($previousUmask);
+        }
+
+        $files = glob($this->cacheDir.'/hydrator/*.php') ?: [];
+        $this->assertCount(1, $files);
+        $this->assertSame(0o644, fileperms($files[0]) & 0o777);
+    }
+
+    public function testSetToExistingTypeDirectoryCreatedByAnotherProcessDoesNotFail(): void
+    {
+        mkdir($this->cacheDir.'/hydrator', 0o755, true);
+
+        $this->cache->set('TestClass', 'hydrator', '<?php return new class {};');
+
+        $this->assertNotNull($this->cache->get('TestClass', 'hydrator'));
+    }
+
+    public function testConstructionWithDirectoryCreatedConcurrentlyDoesNotFail(): void
+    {
+        $directory = $this->cacheDir.'/nested/deeper';
+        $first = new FileCache($directory);
+        $second = new FileCache($directory);
+        $first->clear();
+        $second->clear();
+
+        $this->assertDirectoryExists($directory);
+    }
+
+    public function testConstructionThrowsWhenDirectoryCannotBeCreated(): void
+    {
+        $file = $this->cacheDir.'/not-a-directory';
+        file_put_contents($file, '');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to create cache directory');
+        new FileCache($file.'/cache');
+    }
+
+    public function testSetThrowsAndCleansUpWhenRenameFails(): void
+    {
+        $this->cache->set('TestClass', 'hydrator', '<?php return new class {};');
+        $files = glob($this->cacheDir.'/hydrator/*.php') ?: [];
+        $this->assertCount(1, $files);
+        unlink($files[0]);
+        mkdir($files[0]);
+
+        try {
+            $this->cache->set('TestClass', 'hydrator', '<?php return new class {};');
+            $this->fail('Expected RuntimeException was not thrown');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Unable to move cache file', $e->getMessage());
+        }
+
+        $this->assertSame([], glob($this->cacheDir.'/hydrator/*.tmp') ?: []);
+    }
+
+    public function testSetThrowsWhenDirectoryIsReadOnly(): void
+    {
+        $directory = $this->cacheDir.'/hydrator';
+        mkdir($directory, 0o755, true);
+        chmod($directory, 0o555);
+
+        try {
+            if (is_writable($directory)) {
+                $this->markTestSkipped('Directory permissions are not enforced (running as root?)');
+            }
+
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('Unable to write cache file');
+            $this->cache->set('TestClass', 'hydrator', '<?php return new class {};');
+        } finally {
+            chmod($directory, 0o755);
+        }
     }
 
     public function testInvalidateRemovesCache(): void

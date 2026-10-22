@@ -162,9 +162,8 @@ class Dehydrator
             return $this->loadedArrayDehydrators[$cacheKey];
         }
 
-        if (!$bypassCache && $this->cache->has($cacheKey, self::CACHE_TYPE_ARRAY)) {
-            $dehydrator = $this->cache->get($cacheKey, self::CACHE_TYPE_ARRAY);
-        } else {
+        $dehydrator = $bypassCache ? null : $this->cache->get($cacheKey, self::CACHE_TYPE_ARRAY);
+        if ($dehydrator === null) {
             $code = $this->arrayGenerator->generate($classes);
             $this->cache->set($cacheKey, self::CACHE_TYPE_ARRAY, $code);
             $dehydrator = $this->cache->get($cacheKey, self::CACHE_TYPE_ARRAY);
@@ -192,9 +191,8 @@ class Dehydrator
             return $this->loadedDehydrators[$cacheKey];
         }
 
-        if (!$bypassCache && $this->cache->has($cacheKey, self::CACHE_TYPE)) {
-            $dehydrator = $this->cache->get($cacheKey, self::CACHE_TYPE);
-        } else {
+        $dehydrator = $bypassCache ? null : $this->cache->get($cacheKey, self::CACHE_TYPE);
+        if ($dehydrator === null) {
             if (!class_exists($className)) {
                 throw new \RuntimeException("Class {$className} does not exist");
             }

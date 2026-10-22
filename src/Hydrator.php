@@ -169,9 +169,8 @@ class Hydrator
             return $this->loadedArrayHydrators[$cacheKey];
         }
 
-        if (!$bypassCache && $this->cache->has($cacheKey, self::CACHE_TYPE_ARRAY)) {
-            $hydrator = $this->cache->get($cacheKey, self::CACHE_TYPE_ARRAY);
-        } else {
+        $hydrator = $bypassCache ? null : $this->cache->get($cacheKey, self::CACHE_TYPE_ARRAY);
+        if ($hydrator === null) {
             $code = $this->arrayGenerator->generateSimple($className);
             $this->cache->set($cacheKey, self::CACHE_TYPE_ARRAY, $code);
             $hydrator = $this->cache->get($cacheKey, self::CACHE_TYPE_ARRAY);
@@ -206,9 +205,8 @@ class Hydrator
             return $this->loadedArrayHydrators[$cacheKey];
         }
 
-        if (!$bypassCache && $this->cache->has($cacheKey, self::CACHE_TYPE_ARRAY)) {
-            $hydrator = $this->cache->get($cacheKey, self::CACHE_TYPE_ARRAY);
-        } else {
+        $hydrator = $bypassCache ? null : $this->cache->get($cacheKey, self::CACHE_TYPE_ARRAY);
+        if ($hydrator === null) {
             $code = $this->arrayGenerator->generateDiscriminated($discriminator, $mapping);
             $this->cache->set($cacheKey, self::CACHE_TYPE_ARRAY, $code);
             $hydrator = $this->cache->get($cacheKey, self::CACHE_TYPE_ARRAY);
@@ -236,9 +234,8 @@ class Hydrator
             return $this->loadedHydrators[$cacheKey];
         }
 
-        if (!$bypassCache && $this->cache->has($cacheKey, self::CACHE_TYPE)) {
-            $hydrator = $this->cache->get($cacheKey, self::CACHE_TYPE);
-        } else {
+        $hydrator = $bypassCache ? null : $this->cache->get($cacheKey, self::CACHE_TYPE);
+        if ($hydrator === null) {
             if (!class_exists($className)) {
                 throw new \RuntimeException("Class {$className} does not exist");
             }
