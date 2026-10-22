@@ -203,7 +203,7 @@ final class ArrayOfTypeHandler implements TypeHandler
             }
             $itemTypeCheck = Ast::funcCall('is_a', [Ast::var('item'), Ast::classConst($objectType, 'class')]);
         } else {
-            $itemTypeCheck = $this->buildScalarTypeCheck(Ast::var('item'), $scalarTypes);
+            $itemTypeCheck = $this->buildScalarTypeCheck(Ast::var('item'), $scalarTypes, acceptIntAsFloat: true);
         }
 
         if ($itemTypeCheck === null) {
@@ -237,7 +237,7 @@ final class ArrayOfTypeHandler implements TypeHandler
                         [
                             Ast::expr(Ast::assign(
                                 Ast::arrayAccess(Ast::var("result_{$name}"), Ast::var($arrayKeyVar)),
-                                Ast::var('item')
+                                $isObjectType ? Ast::var('item') : HydraAst::widenIntToFloat(Ast::var('item'), $scalarTypes)
                             )),
                         ],
                     ),
@@ -455,7 +455,7 @@ final class ArrayOfTypeHandler implements TypeHandler
     /**
      * @param list<string> $scalarTypes
      */
-    private function buildScalarTypeCheck(Expr $value, array $scalarTypes): ?Expr
+    private function buildScalarTypeCheck(Expr $value, array $scalarTypes, bool $acceptIntAsFloat = false): ?Expr
     {
         if (in_array('mixed', $scalarTypes, true)) {
             return null;
@@ -465,7 +465,7 @@ final class ArrayOfTypeHandler implements TypeHandler
         foreach ($scalarTypes as $scalarType) {
             $check = $scalarType === 'null'
                 ? Ast::identical($value, Ast::null())
-                : HydraAst::scalarTypeCheck($value, $scalarType);
+                : HydraAst::scalarTypeCheck($value, $scalarType, $acceptIntAsFloat && !in_array('int', $scalarTypes, true));
             if ($check === null) {
                 throw new \InvalidArgumentException("Invalid scalar type '{$scalarType}' in ArrayOf.");
             }

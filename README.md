@@ -15,7 +15,7 @@ The main principles of this approach are:
 Limitations:
 
 - Circular references are not supported.
-- Type coercion is prevented by design.
+- Type coercion is prevented by design. The only exception is `int` → `float` widening (the same one PHP allows under `strict_types`; integers above 2^53 lose precision just like in PHP), so JSON `5` hydrates into a `float` property (or `float` list/map/array item) as `5.0`. Numeric strings and bools are still rejected.
 - `readonly` DTOs without constructor parameters are not currently supported for hydration. Use constructor-based `readonly` DTOs (promoted params), or non-`readonly` public properties for property-only DTOs.
 
 ## Naming strategy
