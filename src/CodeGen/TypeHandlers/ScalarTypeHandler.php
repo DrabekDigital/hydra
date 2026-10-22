@@ -189,7 +189,7 @@ final class ScalarTypeHandler implements TypeHandler
         $refProp = Ast::assign(
             Ast::var("ref_{$name}"),
             Ast::new('\ReflectionProperty', [
-                Ast::classConst($context->shortName, 'class'),
+                Ast::classConst($context->className, 'class'),
                 Ast::string($name),
             ])
         );
@@ -222,7 +222,7 @@ final class ScalarTypeHandler implements TypeHandler
         $refProp = Ast::assign(
             Ast::var("ref_{$name}"),
             Ast::new('\ReflectionProperty', [
-                Ast::classConst($ctx->shortName, 'class'),
+                Ast::classConst($ctx->className, 'class'),
                 Ast::string($name),
             ])
         );

@@ -19,8 +19,10 @@ use DrabekDigital\Hydra\CodeGen\TypeHandlers\NestedObjectTypeHandler;
 use DrabekDigital\Hydra\CodeGen\TypeHandlers\ObjectTypeHandler;
 use DrabekDigital\Hydra\CodeGen\TypeHandlers\ScalarTypeHandler;
 use DrabekDigital\Hydra\CodeGen\TypeHandlers\TypeHandlerRegistry;
+use DrabekDigital\Hydra\Exceptions\HydrationFailure;
 use DrabekDigital\Hydra\Metadata\ClassAnalyzer;
 use DrabekDigital\Hydra\Metadata\PropertyMetadata;
+use DrabekDigital\Hydra\Runtime\HydratorRuntime;
 use PhpParser\Node;
 use PhpParser\Node\Stmt;
 use PhpParser\PrettyPrinter\Standard as PrettyPrinter;
@@ -49,10 +51,7 @@ class HydratorGenerator
         // Single pass: handlers register nested types and return statements
         $propertyStmts = $this->generateAllPropertyStatements($context);
 
-        $stmts = [
-            ...$this->generateUseStatements($context),
-            $this->generateReturnAnonymousClass($context, $propertyStmts),
-        ];
+        $stmts = [$this->generateReturnAnonymousClass($context, $propertyStmts)];
 
         return "<?php declare(strict_types=1);\n\n".$this->printer->prettyPrint($stmts);
     }
@@ -97,7 +96,6 @@ class HydratorGenerator
 
         return new GenerationContext(
             className: $className,
-            shortName: GenerationContext::getShortName($className),
             hasUndefinable: $hasUndefinable,
             properties: $properties,
             isPropertyOnly: $isPropertyOnly,
@@ -124,40 +122,13 @@ class HydratorGenerator
     }
 
     /**
-     * @return Stmt[]
-     */
-    private function generateUseStatements(GenerationContext $context): array
-    {
-        $stmts = [
-            Ast::use('DrabekDigital\Hydra\Errors\HydrationError'),
-            Ast::use('DrabekDigital\Hydra\Errors\HydrationErrorCode'),
-            Ast::use('DrabekDigital\Hydra\Exceptions\HydrationFailure'),
-            Ast::use('DrabekDigital\Hydra\Runtime\HydratorRuntime'),
-        ];
-
-        // Add use for main class if namespaced
-        if ($context->isNamespaced()) {
-            $stmts[] = Ast::use($context->className);
-        }
-
-        // Add uses for nested types
-        foreach ($context->getNestedTypes() as $type) {
-            if (GenerationContext::typeIsNamespaced($type) && $type !== $context->className) {
-                $stmts[] = Ast::use($type);
-            }
-        }
-
-        return $stmts;
-    }
-
-    /**
      * @param Stmt[] $propertyStmts
      */
     private function generateReturnAnonymousClass(GenerationContext $context, array $propertyStmts): Stmt\Return_
     {
         // Build anonymous class manually since BuilderFactory doesn't support it
         $classNode = new Stmt\Class_(null, [
-            'implements' => [new Node\Name('HydratorRuntime')],
+            'implements' => [Ast::className(HydratorRuntime::class)],
             'stmts' => [
                 $this->generateNestedHydratorsProperty(),
                 $this->generateCustomMappersProperty(),
@@ -281,14 +252,14 @@ class HydratorGenerator
         }
 
         $runtimeStmts = [...$runtimeStmts, ...$propertyStmts];
-        $runtimeStmts[] = HydraAst::throwIfErrors('HydrationFailure');
+        $runtimeStmts[] = HydraAst::throwIfErrors(HydrationFailure::class);
         $runtimeStmts = [...$runtimeStmts, ...$this->generateConstructorStatements($context)];
 
         $stmts = [HydraAst::wrapHydrationRuntimeBoundary($runtimeStmts)];
 
         return Ast::factory()->method('hydrate')
             ->makePublic()
-            ->setReturnType($context->shortName)
+            ->setReturnType(Ast::className($context->className))
             ->addParam(Ast::factory()->param('data')->setType('array'))
             ->addParam(Ast::factory()->param('path')->setType('string')->setDefault(''))
             ->addStmts($stmts)
@@ -357,7 +328,7 @@ class HydratorGenerator
             ))
         );
 
-        return [Ast::return(Ast::new($context->shortName, $args))];
+        return [Ast::return(Ast::new($context->className, $args))];
     }
 
     /**
@@ -372,7 +343,7 @@ class HydratorGenerator
         // $object = new ClassName();
         $stmts[] = Ast::expr(Ast::assign(
             Ast::var('object'),
-            Ast::new($context->shortName)
+            Ast::new($context->className)
         ));
 
         // Set each property directly
@@ -417,7 +388,7 @@ class HydratorGenerator
         // $ref = new \ReflectionClass(ClassName::class)
         $stmts[] = Ast::expr(Ast::assign(
             Ast::var('ref'),
-            Ast::new('\ReflectionClass', [Ast::classConst($context->shortName, 'class')])
+            Ast::new('\ReflectionClass', [Ast::classConst($context->className, 'class')])
         ));
 
         // $object = $ref->newInstanceWithoutConstructor()

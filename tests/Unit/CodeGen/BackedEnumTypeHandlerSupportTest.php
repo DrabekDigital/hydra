@@ -33,7 +33,6 @@ class BackedEnumTypeHandlerSupportTest extends TestCase
         $this->handler = new BackedEnumTypeHandler();
         $this->ctx = new GenerationContext(
             className: \stdClass::class,
-            shortName: 'stdClass',
             hasUndefinable: false,
             properties: [],
         );

@@ -119,31 +119,6 @@ class GenerationContextTest extends TestCase
         $this->assertFalse($ctx->shouldSkipDehydration($prop));
     }
 
-    // ── isNamespaced / typeIsNamespaced / getShortName ────────────────
-
-    public function testIsNamespacedTrueForQualifiedName(): void
-    {
-        $ctx = new GenerationContext(
-            className: GenerationContext::class,
-            shortName: 'GenerationContext',
-            hasUndefinable: false,
-            properties: [],
-        );
-        $this->assertTrue($ctx->isNamespaced());
-    }
-
-    public function testTypeIsNamespacedStaticMethod(): void
-    {
-        $this->assertTrue(GenerationContext::typeIsNamespaced('Foo\Bar'));
-        $this->assertFalse(GenerationContext::typeIsNamespaced('Bar'));
-    }
-
-    public function testGetShortNameExtractsLastSegment(): void
-    {
-        $this->assertSame('MyClass', GenerationContext::getShortName('Foo\Bar\MyClass'));
-        $this->assertSame('Simple', GenerationContext::getShortName('Simple'));
-    }
-
     // ── nested types ──────────────────────────────────────────────────
 
     public function testRegisterNestedTypeAndRetrieve(): void
@@ -194,7 +169,6 @@ class GenerationContextTest extends TestCase
     {
         return new GenerationContext(
             className: \stdClass::class,
-            shortName: 'stdClass',
             hasUndefinable: false,
             properties: $properties,
         );

@@ -560,7 +560,7 @@ final class MapOfTypeHandler implements TypeHandler
         $refProp = Ast::assign(
             Ast::var("ref_{$name}"),
             Ast::new('\ReflectionProperty', [
-                Ast::classConst($ctx->shortName, 'class'),
+                Ast::classConst($ctx->className, 'class'),
                 Ast::string($name),
             ])
         );
