@@ -147,6 +147,62 @@ class ArrayHydrationTest extends TestCase
         $this->hydrator->hydrateArray($data, className: SimpleDTO::class);
     }
 
+    public function testAggregatesErrorsOfAllInvalidItems(): void
+    {
+        $data = [
+            ['name' => 'John', 'age' => 30],
+            ['name' => 'Jane'],
+            ['name' => 'Bob', 'age' => 35],
+            ['name' => 42, 'age' => 40],
+        ];
+
+        $this->assertSame([
+            'missing_key|age|[1].age',
+            'type_mismatch|name|[3].name',
+        ], $this->collectArrayHydrationErrors(fn () => $this->hydrator->hydrateArray($data, className: SimpleDTO::class)));
+    }
+
+    public function testAggregatesNonArrayItemWithInvalidItems(): void
+    {
+        $data = [
+            ['name' => 'Jane'],
+            'not-an-array',
+            ['name' => 'Bob', 'age' => 35],
+            ['age' => 'old'],
+        ];
+
+        $this->assertSame([
+            'missing_key|age|[0].age',
+            'type_mismatch|1|[1]',
+            'missing_key|name|[3].name',
+            'type_mismatch|age|[3].age',
+        ], $this->collectArrayHydrationErrors(fn () => $this->hydrator->hydrateArray($data, className: SimpleDTO::class)));
+    }
+
+    public function testAggregatesErrorsOfAllInvalidDiscriminatedItems(): void
+    {
+        $data = [
+            ['type' => 'car', 'brand' => 'Toyota', 'year' => 2023, 'doors' => 4],
+            ['type' => 'car', 'brand' => 'Ford', 'year' => 2021],
+            ['type' => 'boat', 'brand' => 'Yamaha', 'year' => 2022],
+            ['type' => 'motorcycle', 'brand' => 'Harley', 'year' => 'old', 'engineCC' => 1200],
+            ['brand' => 'Unknown'],
+            'not-an-array',
+        ];
+
+        $this->assertSame([
+            'missing_key|doors|[1].doors',
+            'invalid_value|type|[2]',
+            'type_mismatch|year|[3].year',
+            'missing_key|type|[4]',
+            'type_mismatch|5|[5]',
+        ], $this->collectArrayHydrationErrors(fn () => $this->hydrator->hydrateArray(
+            $data,
+            discriminator: 'type',
+            mapping: ['car' => Car::class, 'motorcycle' => Motorcycle::class]
+        )));
+    }
+
     public function testRequiresEitherClassnameOrDiscriminator(): void
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -210,5 +266,21 @@ class ArrayHydrationTest extends TestCase
         $result = $this->dehydrator->dehydrateArray($objects);
 
         $this->assertEquals($original, $result);
+    }
+
+    /**
+     * @return list<string> errors formatted as "code|key|fullPath"
+     */
+    private function collectArrayHydrationErrors(callable $hydrate): array
+    {
+        try {
+            $hydrate();
+            $this->fail('Expected HydrationFailure was not thrown');
+        } catch (HydrationFailure $e) {
+            return array_values(array_map(
+                fn ($error) => "{$error->code->value}|{$error->key}|{$error->fullPath}",
+                $e->getErrors()
+            ));
+        }
     }
 }

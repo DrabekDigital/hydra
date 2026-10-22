@@ -59,6 +59,30 @@ class DehydrationFailureTest extends TestCase
         }
     }
 
+    public function testDehydrateArrayAggregatesErrorsOfAllFailingObjects(): void
+    {
+        $valid = new NoConstructorDTO();
+        $valid->title = 'ok';
+        $valid->count = 1;
+
+        $partial = new NoConstructorDTO();
+        $partial->title = 'partial';
+
+        try {
+            $this->dehydrator->dehydrateArray([$valid, new NoConstructorDTO(), $valid, $partial]);
+            $this->fail('Expected DehydrationFailure was not thrown');
+        } catch (DehydrationFailure $e) {
+            $this->assertSame([
+                'uninitialized_property|title|[1].title',
+                'uninitialized_property|count|[1].count',
+                'uninitialized_property|count|[3].count',
+            ], array_map(
+                fn ($error) => "{$error->code->value}|{$error->key}|{$error->fullPath}",
+                $e->getErrors()
+            ));
+        }
+    }
+
     public function testUninitializedPropertyErrorCodeIsUninitializedProperty(): void
     {
         $dto = new NoConstructorDTO();
