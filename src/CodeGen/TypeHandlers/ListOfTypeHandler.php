@@ -124,11 +124,7 @@ final class ListOfTypeHandler implements TypeHandler
         if ($isObjectType) {
             if ($attr->discriminator !== null && $attr->mapping !== null) {
                 $disc = $attr->discriminator;
-                $itemPath = Ast::funcCall('sprintf', [
-                    Ast::string('%s[%d]'),
-                    Ast::var("itemPath_{$name}"),
-                    Ast::var("i_{$name}"),
-                ]);
+                $itemPath = HydraAst::indexedPath(Ast::var("itemPath_{$name}"), Ast::var("i_{$name}"));
                 $switchCases = [];
                 foreach ($attr->mapping as $discValue => $mappedClass) {
                     $switchCases[] = new Stmt\Case_(
@@ -198,7 +194,7 @@ final class ListOfTypeHandler implements TypeHandler
                 ];
             }
 
-            // $result_{name}[] = $this->nestedHydrators['Type']->hydrate($item, "$path[$i]")
+            // $result_{name}[] = $this->nestedHydrators['Type']->hydrate($item, sprintf('%s[%d]', $itemPath, $i))
             return [
                 HydraAst::wrapInHydrationCatch([Ast::expr(Ast::assign(
                     Ast::arrayAccess(Ast::var("result_{$name}"), null),
@@ -210,18 +206,14 @@ final class ListOfTypeHandler implements TypeHandler
                         'hydrate',
                         [
                             Ast::var('item'),
-                            Ast::concat(Ast::var("itemPath_{$name}"), Ast::string("[\$i_{$name}]")),
+                            HydraAst::indexedPath(Ast::var("itemPath_{$name}"), Ast::var("i_{$name}")),
                         ]
                     )
                 ))]),
             ];
         }
 
-        $itemPath = Ast::funcCall('sprintf', [
-            Ast::string('%s[%d]'),
-            Ast::var("itemPath_{$name}"),
-            Ast::var("i_{$name}"),
-        ]);
+        $itemPath = HydraAst::indexedPath(Ast::var("itemPath_{$name}"), Ast::var("i_{$name}"));
         $check = HydraAst::scalarTypeCheck(Ast::var('item'), $itemType, acceptIntAsFloat: true);
         if ($check === null) {
             return [
@@ -273,7 +265,7 @@ final class ListOfTypeHandler implements TypeHandler
                                     Ast::methodCall(
                                         Ast::arrayAccess(Ast::property(Ast::var('this'), 'nestedDehydrators'), $mappedClass),
                                         'dehydrate',
-                                        [Ast::var('item'), $pathExpr]
+                                        [Ast::var('item'), HydraAst::indexedPath($pathExpr, Ast::var("i_{$name}"))]
                                     )
                                 )),
                                 Ast::expr(Ast::assign(
@@ -301,12 +293,14 @@ final class ListOfTypeHandler implements TypeHandler
 
                 return [
                     Ast::expr(Ast::assign(Ast::var("result_{$name}"), Ast::array([]))),
+                    Ast::expr(Ast::assign(Ast::var("i_{$name}"), Ast::int(0))),
                     Ast::foreach(
                         HydraAst::objectProperty($name),
                         Ast::var('item'),
                         [
                             Ast::expr(Ast::assign(Ast::var("class_{$name}"), Ast::funcCall('get_class', [Ast::var('item')]))),
                             new Stmt\Switch_(Ast::var("class_{$name}"), $switchCases),
+                            Ast::expr(new PostInc(Ast::var("i_{$name}"))),
                         ],
                         null
                     ),
@@ -316,6 +310,7 @@ final class ListOfTypeHandler implements TypeHandler
 
             return [
                 Ast::expr(Ast::assign(Ast::var("result_{$name}"), Ast::array([]))),
+                Ast::expr(Ast::assign(Ast::var("i_{$name}"), Ast::int(0))),
                 Ast::foreach(
                     HydraAst::objectProperty($name),
                     Ast::var('item'),
@@ -328,9 +323,10 @@ final class ListOfTypeHandler implements TypeHandler
                                     $itemType
                                 ),
                                 'dehydrate',
-                                [Ast::var('item'), $pathExpr]
+                                [Ast::var('item'), HydraAst::indexedPath($pathExpr, Ast::var("i_{$name}"))]
                             )
                         ))]),
+                        Ast::expr(new PostInc(Ast::var("i_{$name}"))),
                     ],
                     null
                 ),
@@ -371,7 +367,7 @@ final class ListOfTypeHandler implements TypeHandler
                                         Ast::funcCall('gettype', [Ast::var('item')])
                                     ),
                                     Ast::var("i_{$name}"),
-                                    Ast::funcCall('sprintf', [Ast::string('%s[%d]'), $pathExpr, Ast::var("i_{$name}")])
+                                    HydraAst::indexedPath($pathExpr, Ast::var("i_{$name}"))
                                 )],
                                 [
                                     Ast::expr(Ast::assign(
