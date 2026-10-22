@@ -9,11 +9,16 @@ use Psr\SimpleCache\CacheInterface as Psr16CacheInterface;
 /**
  * PSR-16 adapter for generated hydrator/dehydrator code.
  *
- * Entries are stored under "{prefix}.{generation}.{hash}" keys. The generation is a counter
- * kept under "{prefix}.__generation"; clear() only increments it, so entries of previous
- * generations become unreachable and expire (see $ttl) or get evicted by the backend.
+ * Entries are stored under "{prefix}.{generation}.{hash}" keys. The generation is a random token
+ * kept under "{prefix}.__generation" (without TTL); clear() only writes a new random token, so
+ * entries of previous generations become unreachable and expire (see $ttl) or get evicted by
+ * the backend. A missing or invalid token (e.g. evicted by LRU) is replaced by a new random one,
+ * so entries stored before can never become reachable again.
  * Keys not owned by this adapter are never touched, which makes it safe to wrap an
  * application-wide pool. Adapters with different prefixes are cleared independently.
+ *
+ * The generation is read from the backend once per adapter instance; a clear() made by another
+ * process becomes visible to adapter instances created afterwards.
  *
  * Security note:
  * Generated code is executed via eval(), so the backing cache storage must be treated as trusted.
@@ -21,6 +26,8 @@ use Psr\SimpleCache\CacheInterface as Psr16CacheInterface;
 final class Psr16CacheAdapter implements CacheInterface
 {
     private const string GENERATION_KEY_SUFFIX = '__generation';
+
+    private ?string $generation = null;
 
     /**
      * @param string                 $prefix key prefix, allowed characters are A-Z, a-z, 0-9, "_" and "."
@@ -67,7 +74,7 @@ final class Psr16CacheAdapter implements CacheInterface
 
     public function clear(): void
     {
-        $this->cache->set($this->getGenerationKey(), $this->getGeneration() + 1);
+        $this->generation = $this->storeNewGeneration();
     }
 
     private function buildKey(string $className, string $type): string
@@ -75,14 +82,26 @@ final class Psr16CacheAdapter implements CacheInterface
         return $this->prefix.'.'.$this->getGeneration().'.'.md5($type.'|'.$className);
     }
 
-    private function getGeneration(): int
+    private function getGeneration(): string
     {
-        $generation = $this->cache->get($this->getGenerationKey());
-        if (is_string($generation) && ctype_digit($generation)) {
-            $generation = (int) $generation;
+        if ($this->generation !== null) {
+            return $this->generation;
         }
 
-        return is_int($generation) && $generation > 0 ? $generation : 1;
+        $generation = $this->cache->get($this->getGenerationKey());
+        if (!is_string($generation) || preg_match('/^[0-9a-f]{16}$/', $generation) !== 1) {
+            $generation = $this->storeNewGeneration();
+        }
+
+        return $this->generation = $generation;
+    }
+
+    private function storeNewGeneration(): string
+    {
+        $generation = bin2hex(random_bytes(8));
+        $this->cache->set($this->getGenerationKey(), $generation);
+
+        return $generation;
     }
 
     private function getGenerationKey(): string

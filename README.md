@@ -143,9 +143,14 @@ Because generated code is executable, treat cache storage as trusted runtime sur
 never calls `clear()` on the wrapped PSR-16 pool, so it is safe to pass your application's shared pool – sessions,
 rate limits or other cached data stay untouched.
 
-Entries are stored under `{prefix}.{generation}.{hash}` keys and the current generation is kept under
-`{prefix}.__generation`. Clearing only increments the generation, which makes all previously stored Hydra entries
-unreachable; the backend drops them once they expire or get evicted. Therefore:
+Entries are stored under `{prefix}.{generation}.{hash}` keys, where the generation is a random token kept under
+`{prefix}.__generation` (stored without TTL). Clearing only writes a new random token, which makes all previously
+stored Hydra entries unreachable; the backend drops them once they expire or get evicted. If the token itself is
+evicted or deleted, a new random one is generated, so old entries never become reachable again.
+
+The token is read from the backend once per adapter instance. A clear made by another process (e.g. a deploy
+script) is picked up by adapter instances created afterwards, so restart long-running workers after clearing.
+Therefore:
 
 - prefer a dedicated pool (or namespace) for Hydra where your framework allows it,
 - when using a shared pool, pass a `ttl` so orphaned entries do not occupy storage forever,

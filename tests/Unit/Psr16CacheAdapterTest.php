@@ -98,18 +98,17 @@ class Psr16CacheAdapterTest extends TestCase
         $this->assertFalse($cache->has('ClassOne', 'hydrator'));
     }
 
-    public function testClearIsVisibleToOtherAdapterInstancesWithSamePrefix(): void
+    public function testClearIsVisibleToAdapterInstancesCreatedAfterwards(): void
     {
         $pool = new InMemoryPsr16Cache();
         $first = new Psr16CacheAdapter($pool);
-        $second = new Psr16CacheAdapter($pool);
 
         $first->set('ClassOne', 'hydrator', '<?php return new class {};');
-        $this->assertTrue($second->has('ClassOne', 'hydrator'));
+        $this->assertTrue(new Psr16CacheAdapter($pool)->has('ClassOne', 'hydrator'));
 
-        $second->clear();
+        $first->clear();
 
-        $this->assertFalse($first->has('ClassOne', 'hydrator'));
+        $this->assertFalse(new Psr16CacheAdapter($pool)->has('ClassOne', 'hydrator'));
     }
 
     public function testCustomPrefixIsolatesInstancesSharingOnePool(): void
@@ -128,33 +127,65 @@ class Psr16CacheAdapterTest extends TestCase
         $this->assertTrue($second->has('ClassOne', 'hydrator'));
     }
 
-    public function testInvalidGenerationCounterFallsBackToFirstGeneration(): void
+    public function testEntriesAreNotReusedAfterGenerationKeyEviction(): void
     {
         $pool = new InMemoryPsr16Cache();
-        $pool->set('hydra.__generation', 'garbage');
+        new Psr16CacheAdapter($pool)->set('ClassOne', 'hydrator', '<?php return new class {};');
+
+        $pool->delete('hydra.__generation');
+        $cache = new Psr16CacheAdapter($pool);
+
+        $this->assertFalse($cache->has('ClassOne', 'hydrator'));
+        $this->assertNull($cache->get('ClassOne', 'hydrator'));
+    }
+
+    public function testInvalidGenerationTokenIsReplacedByRandomToken(): void
+    {
+        $pool = new InMemoryPsr16Cache();
+        $pool->set('hydra.__generation', 1);
         $cache = new Psr16CacheAdapter($pool);
 
         $cache->set('ClassOne', 'hydrator', '<?php return new class {};');
+
         $this->assertTrue($cache->has('ClassOne', 'hydrator'));
-
-        $cache->clear();
-
-        $this->assertFalse($cache->has('ClassOne', 'hydrator'));
-        $this->assertSame(2, $pool->get('hydra.__generation'));
+        $this->assertIsString($pool->get('hydra.__generation'));
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{16}$/', $pool->get('hydra.__generation'));
     }
 
-    public function testNumericStringGenerationCounterIsIncremented(): void
+    public function testClearChangesGenerationEvenWhenGenerationKeyIsMissing(): void
     {
         $pool = new InMemoryPsr16Cache();
-        $pool->set('hydra.__generation', '5');
         $cache = new Psr16CacheAdapter($pool);
 
         $cache->clear();
+        $first = $pool->get('hydra.__generation');
+        $cache->clear();
+        $second = $pool->get('hydra.__generation');
 
-        $this->assertSame(6, $pool->get('hydra.__generation'));
+        $this->assertIsString($first);
+        $this->assertIsString($second);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{16}$/', $first);
+        $this->assertNotSame($first, $second);
     }
 
-    public function testTtlIsAppliedToEntriesButNotToGenerationCounter(): void
+    public function testGenerationIsReadFromBackendOncePerInstance(): void
+    {
+        $pool = new InMemoryPsr16Cache();
+        $cache = new Psr16CacheAdapter($pool);
+        $code = '<?php return new class {};';
+
+        $cache->set('ClassOne', 'hydrator', $code);
+        $cache->has('ClassOne', 'hydrator');
+        $cache->get('ClassOne', 'hydrator');
+        $cache->invalidate('ClassOne', 'hydrator');
+        $cache->clear();
+        $cache->set('ClassOne', 'hydrator', $code);
+        $cache->has('ClassOne', 'hydrator');
+
+        $this->assertSame(1, $pool->reads['hydra.__generation']);
+    }
+
+    public function testTtlIsAppliedToEntriesButNotToGenerationKey(): void
     {
         $pool = new InMemoryPsr16Cache();
         $cache = new Psr16CacheAdapter($pool, ttl: 3600);
@@ -183,11 +214,16 @@ final class InMemoryPsr16Cache implements Psr16CacheInterface
     /** @var array<string, null|\DateInterval|int> */
     public array $ttls = [];
 
+    /** @var array<string, int> */
+    public array $reads = [];
+
     /** @var array<string, mixed> */
     private array $values = [];
 
     public function get(string $key, mixed $default = null): mixed
     {
+        $this->reads[$key] = ($this->reads[$key] ?? 0) + 1;
+
         return $this->values[$key] ?? $default;
     }
 
