@@ -6,6 +6,7 @@ namespace DrabekDigital\Hydra\CodeGen;
 
 use DrabekDigital\Hydra\CodeGen\Ast\Ast;
 use DrabekDigital\Hydra\CodeGen\Ast\HydraAst;
+use DrabekDigital\Hydra\Exceptions\DehydrationFailure;
 use DrabekDigital\Hydra\Runtime\ArrayDehydratorRuntime;
 use PhpParser\Node;
 use PhpParser\Node\Stmt;
@@ -88,12 +89,14 @@ class ArrayDehydratorGenerator
     private function generateDehydrateMethod(array $possibleClasses): Stmt\ClassMethod
     {
         $stmts = [
+            Ast::expr(Ast::assign(Ast::var('errors'), Ast::array([]))),
             Ast::expr(Ast::assign(Ast::var('result'), Ast::array([]))),
             Ast::expr(Ast::assign(Ast::var('index'), Ast::int(0))),
         ];
 
         // Generate foreach loop with instanceof checks
         $stmts[] = $this->generateDehydrateLoop($possibleClasses);
+        $stmts[] = HydraAst::throwIfErrors(DehydrationFailure::class);
         $stmts[] = Ast::return(Ast::var('result'));
 
         return Ast::factory()->method('dehydrate')
@@ -116,7 +119,7 @@ class ArrayDehydratorGenerator
         $lastElse = null;
 
         foreach (array_reverse($possibleClasses) as $class) {
-            $thenStmts = [
+            $thenStmts = [HydraAst::wrapInDehydrationCatch([
                 Ast::expr(Ast::assign(
                     Ast::arrayAccess(Ast::var('result'), null),
                     Ast::methodCall(
@@ -131,7 +134,7 @@ class ArrayDehydratorGenerator
                         ]
                     )
                 )),
-            ];
+            ])];
 
             if ($ifChain === null) {
                 // First (innermost) - this becomes the else of the previous

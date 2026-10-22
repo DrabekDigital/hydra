@@ -139,7 +139,8 @@ class ArrayHydratorGenerator
         // foreach ($data as $item) {
         //     $itemPath = sprintf('%s[%d]', $path, $index);
         //     if (!is_array($item)) { error }
-        //     $result[] = $this->nestedHydrators['Class']->hydrate($item, $itemPath);
+        //     try { $result[] = $this->nestedHydrators['Class']->hydrate($item, $itemPath); }
+        //     catch (HydrationFailure $e) { merge $e->getErrors() into $errors }
         //     $index++;
         // }
 
@@ -167,17 +168,19 @@ class ArrayHydratorGenerator
                     )),
                 ],
                 [
-                    Ast::expr(Ast::assign(
-                        Ast::arrayAccess(Ast::var('result'), null),
-                        Ast::methodCall(
-                            Ast::arrayAccess(
-                                Ast::property(Ast::var('this'), 'nestedHydrators'),
-                                $itemClass
-                            ),
-                            'hydrate',
-                            [Ast::var('item'), Ast::var('itemPath')]
-                        )
-                    )),
+                    HydraAst::wrapInHydrationCatch([
+                        Ast::expr(Ast::assign(
+                            Ast::arrayAccess(Ast::var('result'), null),
+                            Ast::methodCall(
+                                Ast::arrayAccess(
+                                    Ast::property(Ast::var('this'), 'nestedHydrators'),
+                                    $itemClass
+                                ),
+                                'hydrate',
+                                [Ast::var('item'), Ast::var('itemPath')]
+                            )
+                        )),
+                    ]),
                 ]
             ),
             Ast::expr(new Node\Expr\PostInc(Ast::var('index'))),
@@ -280,17 +283,19 @@ class ArrayHydratorGenerator
             $cases[] = new Stmt\Case_(
                 Ast::string($value),
                 [
-                    Ast::expr(Ast::assign(
-                        Ast::arrayAccess(Ast::var('result'), null),
-                        Ast::methodCall(
-                            Ast::arrayAccess(
-                                Ast::property(Ast::var('this'), 'nestedHydrators'),
-                                $class
-                            ),
-                            'hydrate',
-                            [Ast::var('itemPayload'), Ast::var('itemPath')]
-                        )
-                    )),
+                    HydraAst::wrapInHydrationCatch([
+                        Ast::expr(Ast::assign(
+                            Ast::arrayAccess(Ast::var('result'), null),
+                            Ast::methodCall(
+                                Ast::arrayAccess(
+                                    Ast::property(Ast::var('this'), 'nestedHydrators'),
+                                    $class
+                                ),
+                                'hydrate',
+                                [Ast::var('itemPayload'), Ast::var('itemPath')]
+                            )
+                        )),
+                    ]),
                     new Stmt\Break_(),
                 ]
             );
