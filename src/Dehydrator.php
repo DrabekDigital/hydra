@@ -12,6 +12,7 @@ use DrabekDigital\Hydra\Attributes\ObjectType;
 use DrabekDigital\Hydra\Caching\CacheInterface;
 use DrabekDigital\Hydra\CodeGen\ArrayDehydratorGenerator;
 use DrabekDigital\Hydra\CodeGen\DehydratorGenerator;
+use DrabekDigital\Hydra\CodeGen\GeneratorVersion;
 use DrabekDigital\Hydra\Exceptions\DehydrationFailure;
 use DrabekDigital\Hydra\Mappers\Mapper;
 use DrabekDigital\Hydra\Metadata\ClassAnalyzer;
@@ -26,6 +27,7 @@ class Dehydrator
     private readonly DehydratorGenerator $generator;
     private readonly ArrayDehydratorGenerator $arrayGenerator;
     private readonly ClassAnalyzer $analyzer;
+    private readonly string $generatorVersion;
 
     /** @var array<string, DehydratorRuntime> */
     private array $loadedDehydrators = [];
@@ -46,7 +48,10 @@ class Dehydrator
         private readonly CacheInterface $cache,
         ?ClassAnalyzer $analyzer = null,
         ?DehydratorGenerator $generator = null,
+        ?string $generatorVersion = null,
     ) {
+        $this->generatorVersion = $generatorVersion ?? GeneratorVersion::GENERATOR_VERSION;
+        GeneratorVersion::assertValid($this->generatorVersion);
         $this->analyzer = $analyzer ?? new ClassAnalyzer();
         $this->generator = $generator ?? new DehydratorGenerator($this->analyzer);
         $this->arrayGenerator = new ArrayDehydratorGenerator();
@@ -121,7 +126,7 @@ class Dehydrator
     public function clearCache(?string $className = null): void
     {
         if ($className !== null) {
-            $cacheKey = "{$className}_{$this->getStructureHash($className)}";
+            $cacheKey = $this->classCacheKey($className);
             $this->cache->invalidate($cacheKey, self::CACHE_TYPE);
             unset($this->loadedDehydrators[$cacheKey], $this->structureHashes[$className]);
 
@@ -150,7 +155,7 @@ class Dehydrator
         foreach ($classes as $class) {
             $classHashes[] = $class.'_'.$this->getStructureHash($class);
         }
-        $cacheKey = 'array_'.md5(implode('|', $classHashes));
+        $cacheKey = $this->versionedCacheKey('array_'.md5(implode('|', $classHashes)));
         $this->registerArrayCacheKey($cacheKey, $classes);
 
         if (!$bypassCache && isset($this->loadedArrayDehydrators[$cacheKey])) {
@@ -181,8 +186,7 @@ class Dehydrator
 
     private function getDehydrator(string $className, bool $bypassCache = false): DehydratorRuntime
     {
-        $structureHash = $this->getStructureHash($className);
-        $cacheKey = "{$className}_{$structureHash}";
+        $cacheKey = $this->classCacheKey($className);
 
         if (!$bypassCache && isset($this->loadedDehydrators[$cacheKey])) {
             return $this->loadedDehydrators[$cacheKey];
@@ -208,6 +212,16 @@ class Dehydrator
         $this->loadedDehydrators[$cacheKey] = $dehydrator;
 
         return $dehydrator;
+    }
+
+    private function classCacheKey(string $className): string
+    {
+        return $this->versionedCacheKey("{$className}_{$this->getStructureHash($className)}");
+    }
+
+    private function versionedCacheKey(string $key): string
+    {
+        return GeneratorVersion::cacheKey($key, $this->generatorVersion);
     }
 
     private function getStructureHash(string $className): string

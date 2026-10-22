@@ -134,8 +134,16 @@ Because generated code is executable, treat cache storage as trusted runtime sur
 
 - keep cache backend private to your application process,
 - do not share writable cache/temp directories with untrusted actors,
-- prefer app-scoped directories over generic system temp locations in production,
-- clear cache after deployments that change DTO structures.
+- prefer app-scoped directories over generic system temp locations in production.
+
+### Cache invalidation
+
+Cache keys are versioned, so you do not need to clear the cache manually after a deployment:
+
+- **DTO changes** – every key contains a structure hash of the class (property types, defaults, attributes), so changing a DTO generates fresh code under a new key.
+- **Hydra upgrades** – every key also contains `CodeGen\GeneratorVersion::GENERATOR_VERSION`, which is bumped whenever a release changes the generated code. After `composer update` the new code is generated automatically instead of executing stale code from a persistent cache (`FileCache` directory, Redis behind `Psr16CacheAdapter`, ...).
+
+Entries written under old keys are no longer read but are not deleted either. Call `clearCache()` (or clear the backing cache) after an upgrade if you want to reclaim the space.
 
 ### Clearing a PSR-16 cache
 
