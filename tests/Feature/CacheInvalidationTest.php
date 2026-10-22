@@ -190,7 +190,7 @@ class CacheInvalidationTest extends TestCase
         }
 
         try {
-            (new Hydrator($this->cache, generatorVersion: 'old'))->hydrate(['name' => 'John', 'age' => 30], SimpleDTO::class);
+            new Hydrator($this->cache, generatorVersion: 'old')->hydrate(['name' => 'John', 'age' => 30], SimpleDTO::class);
             $this->fail('Stale cache entry should be loaded under the old generator version');
         } catch (\RuntimeException $e) {
             $this->assertStringContainsString('Invalid cached hydrator', $e->getMessage());

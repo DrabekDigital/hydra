@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DrabekDigital\Hydra\Tests\Feature;
 
 use DrabekDigital\Hydra\Caching\FileCache;
+use DrabekDigital\Hydra\CodeGen\GeneratorVersion;
 use DrabekDigital\Hydra\Hydrator;
 use DrabekDigital\Hydra\Metadata\ClassAnalyzer;
 use DrabekDigital\Hydra\Tests\Fixtures\Dto\ListOfMissingMappedClassDTO;
@@ -175,14 +176,14 @@ class HydratorCoverageTest extends TestCase
     {
         $hash = new ClassAnalyzer()->getStructureHash($className);
 
-        return "{$className}_{$hash}";
+        return GeneratorVersion::cacheKey("{$className}_{$hash}");
     }
 
     private function simpleArrayCacheKey(string $className): string
     {
         $hash = new ClassAnalyzer()->getStructureHash($className);
 
-        return "simple_{$className}_{$hash}";
+        return GeneratorVersion::cacheKey("simple_{$className}_{$hash}");
     }
 
     /**
@@ -196,6 +197,6 @@ class HydratorCoverageTest extends TestCase
             $mappingHashes[$value] = $class.'_'.$analyzer->getStructureHash($class);
         }
 
-        return "disc_{$discriminator}_".md5(serialize($mappingHashes));
+        return GeneratorVersion::cacheKey("disc_{$discriminator}_".md5(serialize($mappingHashes)));
     }
 }
