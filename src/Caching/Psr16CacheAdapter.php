@@ -9,14 +9,34 @@ use Psr\SimpleCache\CacheInterface as Psr16CacheInterface;
 /**
  * PSR-16 adapter for generated hydrator/dehydrator code.
  *
+ * Entries are stored under "{prefix}.{generation}.{hash}" keys. The generation is a counter
+ * kept under "{prefix}.__generation"; clear() only increments it, so entries of previous
+ * generations become unreachable and expire (see $ttl) or get evicted by the backend.
+ * Keys not owned by this adapter are never touched, which makes it safe to wrap an
+ * application-wide pool. Adapters with different prefixes are cleared independently.
+ *
  * Security note:
  * Generated code is executed via eval(), so the backing cache storage must be treated as trusted.
  */
 final class Psr16CacheAdapter implements CacheInterface
 {
+    private const string GENERATION_KEY_SUFFIX = '__generation';
+
+    /**
+     * @param string                 $prefix key prefix, allowed characters are A-Z, a-z, 0-9, "_" and "."
+     * @param null|\DateInterval|int $ttl    TTL of generated code entries, so entries orphaned by clear() do not live forever
+     *
+     * @throws \InvalidArgumentException when the prefix contains characters not allowed in PSR-16 keys
+     */
     public function __construct(
         private readonly Psr16CacheInterface $cache,
-    ) {}
+        private readonly string $prefix = 'hydra',
+        private readonly \DateInterval|int|null $ttl = null,
+    ) {
+        if (preg_match('/^[A-Za-z0-9_.]+$/', $prefix) !== 1) {
+            throw new \InvalidArgumentException(sprintf('Invalid cache prefix "%s", allowed characters are A-Z, a-z, 0-9, "_" and ".".', $prefix));
+        }
+    }
 
     public function has(string $className, string $type): bool
     {
@@ -37,7 +57,7 @@ final class Psr16CacheAdapter implements CacheInterface
 
     public function set(string $className, string $type, string $code): void
     {
-        $this->cache->set($this->buildKey($className, $type), $code);
+        $this->cache->set($this->buildKey($className, $type), $code, $this->ttl);
     }
 
     public function invalidate(string $className, string $type): void
@@ -47,12 +67,27 @@ final class Psr16CacheAdapter implements CacheInterface
 
     public function clear(): void
     {
-        $this->cache->clear();
+        $this->cache->set($this->getGenerationKey(), $this->getGeneration() + 1);
     }
 
     private function buildKey(string $className, string $type): string
     {
-        return 'hydra.'.md5($type.'|'.$className);
+        return $this->prefix.'.'.$this->getGeneration().'.'.md5($type.'|'.$className);
+    }
+
+    private function getGeneration(): int
+    {
+        $generation = $this->cache->get($this->getGenerationKey());
+        if (is_string($generation) && ctype_digit($generation)) {
+            $generation = (int) $generation;
+        }
+
+        return is_int($generation) && $generation > 0 ? $generation : 1;
+    }
+
+    private function getGenerationKey(): string
+    {
+        return $this->prefix.'.'.self::GENERATION_KEY_SUFFIX;
     }
 
     private function executeCode(string $code): mixed

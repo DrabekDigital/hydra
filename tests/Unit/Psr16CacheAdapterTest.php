@@ -180,7 +180,7 @@ class Psr16CacheAdapterTest extends TestCase
 
 final class InMemoryPsr16Cache implements Psr16CacheInterface
 {
-    /** @var array<string, \DateInterval|int|null> */
+    /** @var array<string, null|\DateInterval|int> */
     public array $ttls = [];
 
     /** @var array<string, mixed> */
