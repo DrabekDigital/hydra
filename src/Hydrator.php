@@ -44,6 +44,11 @@ class Hydrator
     /** @var array<string, list<string>> */
     private array $arrayCacheKeysByClass = [];
 
+    /** @var array<string, HydratorRuntime> Runtimes resolved within the current top-level call, committed on success */
+    private array $resolvingHydrators = [];
+
+    private int $resolutionDepth = 0;
+
     public function __construct(
         private readonly CacheInterface $cache,
         ?ClassAnalyzer $analyzer = null,
@@ -216,10 +221,12 @@ class Hydrator
         }
 
         // Register nested hydrators for all mapped classes
-        foreach ($mapping as $class) {
-            $nestedHydrator = $this->getHydrator($class, $bypassCache);
-            $hydrator->setNestedHydrator($class, $nestedHydrator);
-        }
+        $this->withinResolution(function () use ($hydrator, $mapping, $bypassCache): void {
+            foreach ($mapping as $class) {
+                $nestedHydrator = $this->resolveHydrator($class, $bypassCache);
+                $hydrator->setNestedHydrator($class, $nestedHydrator);
+            }
+        });
 
         $this->loadedArrayHydrators[$cacheKey] = $hydrator;
 
@@ -228,7 +235,47 @@ class Hydrator
 
     private function getHydrator(string $className, bool $bypassCache = false): HydratorRuntime
     {
+        return $this->withinResolution(fn (): HydratorRuntime => $this->resolveHydrator($className, $bypassCache));
+    }
+
+    /**
+     * Runs $resolve as part of one top-level resolution. Runtimes resolved inside are shared across the
+     * whole call (so self-referencing and cyclic types are built once) and are committed to
+     * loadedHydrators only when the outermost call succeeds.
+     *
+     * @template T
+     *
+     * @param \Closure(): T $resolve
+     *
+     * @return T
+     */
+    private function withinResolution(\Closure $resolve): mixed
+    {
+        ++$this->resolutionDepth;
+
+        try {
+            $result = $resolve();
+            if ($this->resolutionDepth === 1) {
+                foreach ($this->resolvingHydrators as $cacheKey => $hydrator) {
+                    $this->loadedHydrators[$cacheKey] = $hydrator;
+                }
+            }
+
+            return $result;
+        } finally {
+            if (--$this->resolutionDepth === 0) {
+                $this->resolvingHydrators = [];
+            }
+        }
+    }
+
+    private function resolveHydrator(string $className, bool $bypassCache): HydratorRuntime
+    {
         $cacheKey = $this->classCacheKey($className);
+
+        if (isset($this->resolvingHydrators[$cacheKey])) {
+            return $this->resolvingHydrators[$cacheKey];
+        }
 
         if (!$bypassCache && isset($this->loadedHydrators[$cacheKey])) {
             return $this->loadedHydrators[$cacheKey];
@@ -247,10 +294,9 @@ class Hydrator
             throw new \RuntimeException("Invalid cached hydrator for {$className}");
         }
 
-        // Register nested hydrators
+        // Registered before wiring nested hydrators so self-referencing types resolve to this instance
+        $this->resolvingHydrators[$cacheKey] = $hydrator;
         $this->registerNestedHydrators($hydrator, $className, $bypassCache);
-
-        $this->loadedHydrators[$cacheKey] = $hydrator;
 
         return $hydrator;
     }
@@ -287,14 +333,14 @@ class Hydrator
             // Check for direct object type
             $primaryType = $property->getPrimaryType();
             if ($primaryType !== null && $this->analyzer->isObjectType($primaryType)) {
-                $nestedHydrator = $this->getHydrator($primaryType, $bypassCache);
+                $nestedHydrator = $this->resolveHydrator($primaryType, $bypassCache);
                 $hydrator->setNestedHydrator($primaryType, $nestedHydrator);
             }
 
             // Check for ListOf attribute
             $listOf = $property->getAttribute(ListOf::class);
             if ($listOf !== null && $this->analyzer->isObjectType($listOf->value)) {
-                $nestedHydrator = $this->getHydrator($listOf->value, $bypassCache);
+                $nestedHydrator = $this->resolveHydrator($listOf->value, $bypassCache);
                 $hydrator->setNestedHydrator($listOf->value, $nestedHydrator);
             }
             if ($listOf !== null && $listOf->mapping !== null) {
@@ -302,14 +348,14 @@ class Hydrator
                     if (!class_exists($mappedClass)) {
                         throw new \RuntimeException("Mapped class {$mappedClass} does not exist");
                     }
-                    $nestedHydrator = $this->getHydrator($mappedClass, $bypassCache);
+                    $nestedHydrator = $this->resolveHydrator($mappedClass, $bypassCache);
                     $hydrator->setNestedHydrator($mappedClass, $nestedHydrator);
                 }
             }
 
             $mapOf = $property->getAttribute(MapOf::class);
             if ($mapOf !== null && $this->analyzer->isObjectType($mapOf->value)) {
-                $nestedHydrator = $this->getHydrator($mapOf->value, $bypassCache);
+                $nestedHydrator = $this->resolveHydrator($mapOf->value, $bypassCache);
                 $hydrator->setNestedHydrator($mapOf->value, $nestedHydrator);
             }
             if ($mapOf !== null && $mapOf->mapping !== null) {
@@ -317,14 +363,14 @@ class Hydrator
                     if (!class_exists($mappedClass)) {
                         throw new \RuntimeException("Mapped class {$mappedClass} does not exist");
                     }
-                    $nestedHydrator = $this->getHydrator($mappedClass, $bypassCache);
+                    $nestedHydrator = $this->resolveHydrator($mappedClass, $bypassCache);
                     $hydrator->setNestedHydrator($mappedClass, $nestedHydrator);
                 }
             }
 
             $objectType = $property->getAttribute(ObjectType::class);
             if ($objectType !== null && $objectType->value !== null && $this->analyzer->isObjectType($objectType->value)) {
-                $nestedHydrator = $this->getHydrator($objectType->value, $bypassCache);
+                $nestedHydrator = $this->resolveHydrator($objectType->value, $bypassCache);
                 $hydrator->setNestedHydrator($objectType->value, $nestedHydrator);
             }
             if ($objectType !== null && $objectType->mapping !== null) {
@@ -332,7 +378,7 @@ class Hydrator
                     if (!class_exists($mappedClass)) {
                         throw new \RuntimeException("Mapped class {$mappedClass} does not exist");
                     }
-                    $nestedHydrator = $this->getHydrator($mappedClass, $bypassCache);
+                    $nestedHydrator = $this->resolveHydrator($mappedClass, $bypassCache);
                     $hydrator->setNestedHydrator($mappedClass, $nestedHydrator);
                 }
             }
