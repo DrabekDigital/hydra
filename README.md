@@ -1,7 +1,9 @@
 # Hydra 🐉
 
 This is a serialization & deserialization & validation library with minimum dependencies to allow you
-easily guard the app's valuable asset - data integrity. All that in PHP using top-notch PHP 8.4 language features. 
+easily guard the app's valuable asset - data integrity. All that in PHP using top-notch PHP 8.5 language features.
+
+Requires PHP 8.5 or newer.
 
 The main principles of this approach are:
 
