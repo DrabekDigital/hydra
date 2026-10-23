@@ -53,6 +53,35 @@ Example with explicit null handling:
 public ?string $nickname,
 ```
 
+### Undefined values (`#[Undefinable]`)
+
+A property that is not initialized – typically an `#[Undefinable]` property whose key was missing in the input, or a public property of a constructor-less DTO that was never assigned – is **undefined**, and undefined is not `null`:
+
+- no validation rule is applied to it, including `NotNull`, `IsNull` and rules with `FailWhenNull`,
+- the validator does not recurse into it (nested DTOs, `ListOf`, `ArrayOf`, `MapOf`).
+
+Once the value is present (even explicitly `null`), all rules apply as usual, with `null` handled by each rule's `onNull` behavior.
+
+```php
+final class ProfilePatch
+{
+    public function __construct(
+        #[Undefinable]
+        #[NotNull]
+        #[LengthRange(min: 3, max: 30)]
+        public readonly ?string $nickname,
+    ) {}
+}
+
+$validator->validate($hydrator->hydrate([], ProfilePatch::class));                    // passes, nickname is undefined
+$validator->validate($hydrator->hydrate(['nickname' => null], ProfilePatch::class));  // fails: not_null
+$validator->validate($hydrator->hydrate(['nickname' => 'ab'], ProfilePatch::class));  // fails: too_short
+```
+
+If an undefined value must be rejected, don't mark the property `#[Undefinable]` – hydration then fails on the missing key.
+
+Non-public (`private`/`protected`) promoted constructor properties are validated as well; the validator reads them via reflection.
+
 --------------------------------------------
 
 ```php
