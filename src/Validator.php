@@ -24,6 +24,9 @@ class Validator
     /** @var array<string, true> */
     private array $compatibilityCheckedClasses = [];
 
+    /** @var array<class-string, array<string, \ReflectionProperty>> */
+    private array $reflectionProperties = [];
+
     public function __construct(
         private readonly ?ClassAnalyzer $analyzer = null,
     ) {}
@@ -72,12 +75,17 @@ class Validator
 
         $applicator = new ValidationRuleApplicator($this->customValidators);
 
+        $reflectionProperties = $this->getReflectionProperties($object::class, $properties);
+
         foreach ($properties as $property) {
-            if (!property_exists($object, $property->name)) {
+            $reflectionProperty = $reflectionProperties[$property->name] ?? null;
+
+            // Undefined (uninitialized) properties are not validated: undefined is not null.
+            if ($reflectionProperty === null || !$reflectionProperty->isInitialized($object)) {
                 continue;
             }
 
-            $value = $object->{$property->name};
+            $value = $reflectionProperty->getValue($object);
             $fullPath = $path === '' ? $property->name : "{$path}.{$property->name}";
 
             array_push(
@@ -86,6 +94,36 @@ class Validator
             );
             $this->validateNested($value, $property->attributes, $fullPath, $errors, $visited);
         }
+    }
+
+    /**
+     * @param class-string            $class
+     * @param array<PropertyMetadata> $properties
+     *
+     * @return array<string, \ReflectionProperty>
+     */
+    private function getReflectionProperties(string $class, array $properties): array
+    {
+        if (isset($this->reflectionProperties[$class])) {
+            return $this->reflectionProperties[$class];
+        }
+
+        $reflection = new \ReflectionClass($class);
+        $reflectionProperties = [];
+        foreach ($properties as $property) {
+            if (!$reflection->hasProperty($property->name)) {
+                continue;
+            }
+
+            $reflectionProperty = $reflection->getProperty($property->name);
+            if ($reflectionProperty->isStatic()) {
+                continue;
+            }
+
+            $reflectionProperties[$property->name] = $reflectionProperty;
+        }
+
+        return $this->reflectionProperties[$class] = $reflectionProperties;
     }
 
     /**
