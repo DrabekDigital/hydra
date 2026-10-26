@@ -8,6 +8,7 @@ use DrabekDigital\Hydra\Attributes\ArrayOf;
 use DrabekDigital\Hydra\Attributes\ListOf;
 use DrabekDigital\Hydra\Attributes\MapOf;
 use DrabekDigital\Hydra\Errors\ValidationError;
+use DrabekDigital\Hydra\Errors\ValidationErrorCode;
 use DrabekDigital\Hydra\Exceptions\ValidationFailure;
 use DrabekDigital\Hydra\Metadata\ClassAnalyzer;
 use DrabekDigital\Hydra\Metadata\PropertyMetadata;
@@ -23,6 +24,9 @@ class Validator
 
     /** @var array<string, true> */
     private array $compatibilityCheckedClasses = [];
+
+    /** @var array<class-string, array<string, \ReflectionProperty>> */
+    private array $reflectionProperties = [];
 
     public function __construct(
         private readonly ?ClassAnalyzer $analyzer = null,
@@ -72,13 +76,31 @@ class Validator
 
         $applicator = new ValidationRuleApplicator($this->customValidators);
 
+        $reflectionProperties = $this->getReflectionProperties($object::class, $properties);
+
         foreach ($properties as $property) {
-            if (!property_exists($object, $property->name)) {
+            $reflectionProperty = $reflectionProperties[$property->name] ?? null;
+            if ($reflectionProperty === null) {
                 continue;
             }
 
-            $value = $object->{$property->name};
             $fullPath = $path === '' ? $property->name : "{$path}.{$property->name}";
+
+            if (!$reflectionProperty->isInitialized($object)) {
+                // Undefined is not null: #[Undefinable] properties may be absent and are not validated.
+                if (!$property->isUndefinable) {
+                    $errors[] = new ValidationError(
+                        ValidationErrorCode::NOT_INITIALIZED,
+                        "Property '{$property->name}' is not initialized; mark it #[Undefinable] if it may be absent",
+                        $property->name,
+                        $fullPath,
+                    );
+                }
+
+                continue;
+            }
+
+            $value = $reflectionProperty->getValue($object);
 
             array_push(
                 $errors,
@@ -86,6 +108,36 @@ class Validator
             );
             $this->validateNested($value, $property->attributes, $fullPath, $errors, $visited);
         }
+    }
+
+    /**
+     * @param class-string            $class
+     * @param array<PropertyMetadata> $properties
+     *
+     * @return array<string, \ReflectionProperty>
+     */
+    private function getReflectionProperties(string $class, array $properties): array
+    {
+        if (isset($this->reflectionProperties[$class])) {
+            return $this->reflectionProperties[$class];
+        }
+
+        $reflection = new \ReflectionClass($class);
+        $reflectionProperties = [];
+        foreach ($properties as $property) {
+            if (!$reflection->hasProperty($property->name)) {
+                continue;
+            }
+
+            $reflectionProperty = $reflection->getProperty($property->name);
+            if ($reflectionProperty->isStatic()) {
+                continue;
+            }
+
+            $reflectionProperties[$property->name] = $reflectionProperty;
+        }
+
+        return $this->reflectionProperties[$class] = $reflectionProperties;
     }
 
     /**

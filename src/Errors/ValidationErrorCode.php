@@ -23,5 +23,6 @@ enum ValidationErrorCode: string
     case NOT_UNIQUE = 'not_unique';
     case UNIQUE_ITEMS_COMPARATOR_REQUIRED = 'unique_items_comparator_required';
     case RULE_NOT_APPLICABLE = 'rule_not_applicable';
+    case NOT_INITIALIZED = 'not_initialized';
     case CUSTOM = 'custom';
 }
