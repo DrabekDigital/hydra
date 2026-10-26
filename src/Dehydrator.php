@@ -44,6 +44,11 @@ class Dehydrator
     /** @var array<string, list<string>> */
     private array $arrayCacheKeysByClass = [];
 
+    /** @var array<string, DehydratorRuntime> Runtimes resolved within the current top-level call, committed on success */
+    private array $resolvingDehydrators = [];
+
+    private int $resolutionDepth = 0;
+
     public function __construct(
         private readonly CacheInterface $cache,
         ?ClassAnalyzer $analyzer = null,
@@ -173,10 +178,12 @@ class Dehydrator
         }
 
         // Register nested dehydrators for all classes
-        foreach ($classes as $class) {
-            $nestedDehydrator = $this->getDehydrator($class, $bypassCache);
-            $dehydrator->setNestedDehydrator($class, $nestedDehydrator);
-        }
+        $this->withinResolution(function () use ($dehydrator, $classes, $bypassCache): void {
+            foreach ($classes as $class) {
+                $nestedDehydrator = $this->resolveDehydrator($class, $bypassCache);
+                $dehydrator->setNestedDehydrator($class, $nestedDehydrator);
+            }
+        });
 
         $this->loadedArrayDehydrators[$cacheKey] = $dehydrator;
 
@@ -185,7 +192,47 @@ class Dehydrator
 
     private function getDehydrator(string $className, bool $bypassCache = false): DehydratorRuntime
     {
+        return $this->withinResolution(fn (): DehydratorRuntime => $this->resolveDehydrator($className, $bypassCache));
+    }
+
+    /**
+     * Runs $resolve as part of one top-level resolution. Runtimes resolved inside are shared across the
+     * whole call (so self-referencing and cyclic types are built once) and are committed to
+     * loadedDehydrators only when the outermost call succeeds.
+     *
+     * @template T
+     *
+     * @param \Closure(): T $resolve
+     *
+     * @return T
+     */
+    private function withinResolution(\Closure $resolve): mixed
+    {
+        ++$this->resolutionDepth;
+
+        try {
+            $result = $resolve();
+            if ($this->resolutionDepth === 1) {
+                foreach ($this->resolvingDehydrators as $cacheKey => $dehydrator) {
+                    $this->loadedDehydrators[$cacheKey] = $dehydrator;
+                }
+            }
+
+            return $result;
+        } finally {
+            if (--$this->resolutionDepth === 0) {
+                $this->resolvingDehydrators = [];
+            }
+        }
+    }
+
+    private function resolveDehydrator(string $className, bool $bypassCache): DehydratorRuntime
+    {
         $cacheKey = $this->classCacheKey($className);
+
+        if (isset($this->resolvingDehydrators[$cacheKey])) {
+            return $this->resolvingDehydrators[$cacheKey];
+        }
 
         if (!$bypassCache && isset($this->loadedDehydrators[$cacheKey])) {
             return $this->loadedDehydrators[$cacheKey];
@@ -204,10 +251,9 @@ class Dehydrator
             throw new \RuntimeException("Invalid cached dehydrator for {$className}");
         }
 
-        // Register nested dehydrators
+        // Registered before wiring nested dehydrators so self-referencing types resolve to this instance
+        $this->resolvingDehydrators[$cacheKey] = $dehydrator;
         $this->registerNestedDehydrators($dehydrator, $className, $bypassCache);
-
-        $this->loadedDehydrators[$cacheKey] = $dehydrator;
 
         return $dehydrator;
     }
@@ -239,14 +285,14 @@ class Dehydrator
             // Check for direct object type
             $primaryType = $property->getPrimaryType();
             if ($primaryType !== null && $this->analyzer->isObjectType($primaryType)) {
-                $nestedDehydrator = $this->getDehydrator($primaryType, $bypassCache);
+                $nestedDehydrator = $this->resolveDehydrator($primaryType, $bypassCache);
                 $dehydrator->setNestedDehydrator($primaryType, $nestedDehydrator);
             }
 
             // Check for ListOf attribute
             $listOf = $property->getAttribute(ListOf::class);
             if ($listOf !== null && $this->analyzer->isObjectType($listOf->value)) {
-                $nestedDehydrator = $this->getDehydrator($listOf->value, $bypassCache);
+                $nestedDehydrator = $this->resolveDehydrator($listOf->value, $bypassCache);
                 $dehydrator->setNestedDehydrator($listOf->value, $nestedDehydrator);
             }
             if ($listOf !== null && $listOf->mapping !== null) {
@@ -254,14 +300,14 @@ class Dehydrator
                     if (!class_exists($mappedClass)) {
                         throw new \RuntimeException("Mapped class {$mappedClass} does not exist");
                     }
-                    $nestedDehydrator = $this->getDehydrator($mappedClass, $bypassCache);
+                    $nestedDehydrator = $this->resolveDehydrator($mappedClass, $bypassCache);
                     $dehydrator->setNestedDehydrator($mappedClass, $nestedDehydrator);
                 }
             }
 
             $mapOf = $property->getAttribute(MapOf::class);
             if ($mapOf !== null && $this->analyzer->isObjectType($mapOf->value)) {
-                $nestedDehydrator = $this->getDehydrator($mapOf->value, $bypassCache);
+                $nestedDehydrator = $this->resolveDehydrator($mapOf->value, $bypassCache);
                 $dehydrator->setNestedDehydrator($mapOf->value, $nestedDehydrator);
             }
             if ($mapOf !== null && $mapOf->mapping !== null) {
@@ -269,14 +315,14 @@ class Dehydrator
                     if (!class_exists($mappedClass)) {
                         throw new \RuntimeException("Mapped class {$mappedClass} does not exist");
                     }
-                    $nestedDehydrator = $this->getDehydrator($mappedClass, $bypassCache);
+                    $nestedDehydrator = $this->resolveDehydrator($mappedClass, $bypassCache);
                     $dehydrator->setNestedDehydrator($mappedClass, $nestedDehydrator);
                 }
             }
 
             $objectType = $property->getAttribute(ObjectType::class);
             if ($objectType !== null && $objectType->value !== null && $this->analyzer->isObjectType($objectType->value)) {
-                $nestedDehydrator = $this->getDehydrator($objectType->value, $bypassCache);
+                $nestedDehydrator = $this->resolveDehydrator($objectType->value, $bypassCache);
                 $dehydrator->setNestedDehydrator($objectType->value, $nestedDehydrator);
             }
             if ($objectType !== null && $objectType->mapping !== null) {
@@ -284,7 +330,7 @@ class Dehydrator
                     if (!class_exists($mappedClass)) {
                         throw new \RuntimeException("Mapped class {$mappedClass} does not exist");
                     }
-                    $nestedDehydrator = $this->getDehydrator($mappedClass, $bypassCache);
+                    $nestedDehydrator = $this->resolveDehydrator($mappedClass, $bypassCache);
                     $dehydrator->setNestedDehydrator($mappedClass, $nestedDehydrator);
                 }
             }
