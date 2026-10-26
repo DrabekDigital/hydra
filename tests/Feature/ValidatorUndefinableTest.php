@@ -125,16 +125,36 @@ class ValidatorUndefinableTest extends TestCase
         $this->assertSame(ValidationErrorCode::COUNT_TOO_LOW, $errors[0]->code);
     }
 
-    public function testUninitializedPublicPropertiesWithoutConstructorAreSkipped(): void
+    public function testUninitializedPropertiesWithoutUndefinableAreReported(): void
     {
-        new Validator()->validate(new ValidatorUninitializedPublicPropertyDTO());
-        $this->addToAssertionCount(1);
+        $errors = $this->collectErrors(new ValidatorUninitializedPublicPropertyDTO());
+
+        $this->assertSame(
+            [
+                ['title', ValidationErrorCode::NOT_INITIALIZED],
+                ['note', ValidationErrorCode::NOT_INITIALIZED],
+                ['child', ValidationErrorCode::NOT_INITIALIZED],
+            ],
+            array_map(static fn (ValidationError $error): array => [$error->fullPath, $error->code], $errors),
+        );
+    }
+
+    public function testUninitializedConstructorPropertiesWithoutUndefinableAreReported(): void
+    {
+        $dto = new \ReflectionClass(ValidatorUndefinableDTO::class)->newInstanceWithoutConstructor();
+
+        $errors = $this->collectErrors($dto);
+
+        $this->assertCount(1, $errors);
+        $this->assertSame('name', $errors[0]->fullPath);
+        $this->assertSame(ValidationErrorCode::NOT_INITIALIZED, $errors[0]->code);
     }
 
     public function testInitializedPublicPropertiesWithoutConstructorAreValidated(): void
     {
         $dto = new ValidatorUninitializedPublicPropertyDTO();
         $dto->title = 'Hy';
+        $dto->note = 'note';
         $dto->child = new ValidatorUndefinableChildDTO('Al');
 
         $errors = $this->collectErrors($dto);

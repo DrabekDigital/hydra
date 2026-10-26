@@ -8,6 +8,7 @@ use DrabekDigital\Hydra\Attributes\ArrayOf;
 use DrabekDigital\Hydra\Attributes\ListOf;
 use DrabekDigital\Hydra\Attributes\MapOf;
 use DrabekDigital\Hydra\Errors\ValidationError;
+use DrabekDigital\Hydra\Errors\ValidationErrorCode;
 use DrabekDigital\Hydra\Exceptions\ValidationFailure;
 use DrabekDigital\Hydra\Metadata\ClassAnalyzer;
 use DrabekDigital\Hydra\Metadata\PropertyMetadata;
@@ -79,14 +80,27 @@ class Validator
 
         foreach ($properties as $property) {
             $reflectionProperty = $reflectionProperties[$property->name] ?? null;
+            if ($reflectionProperty === null) {
+                continue;
+            }
 
-            // Undefined (uninitialized) properties are not validated: undefined is not null.
-            if ($reflectionProperty === null || !$reflectionProperty->isInitialized($object)) {
+            $fullPath = $path === '' ? $property->name : "{$path}.{$property->name}";
+
+            if (!$reflectionProperty->isInitialized($object)) {
+                // Undefined is not null: #[Undefinable] properties may be absent and are not validated.
+                if (!$property->isUndefinable) {
+                    $errors[] = new ValidationError(
+                        ValidationErrorCode::NOT_INITIALIZED,
+                        "Property '{$property->name}' is not initialized; mark it #[Undefinable] if it may be absent",
+                        $property->name,
+                        $fullPath,
+                    );
+                }
+
                 continue;
             }
 
             $value = $reflectionProperty->getValue($object);
-            $fullPath = $path === '' ? $property->name : "{$path}.{$property->name}";
 
             array_push(
                 $errors,

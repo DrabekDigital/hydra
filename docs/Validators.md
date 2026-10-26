@@ -55,10 +55,10 @@ public ?string $nickname,
 
 ### Undefined values (`#[Undefinable]`)
 
-A property that is not initialized – typically an `#[Undefinable]` property whose key was missing in the input, or a public property of a constructor-less DTO that was never assigned – is **undefined**, and undefined is not `null`:
+A property that is not initialized is **undefined**, and undefined is not `null`. What the validator does with it depends on whether the property is allowed to be absent:
 
-- no validation rule is applied to it, including `NotNull`, `IsNull` and rules with `FailWhenNull`,
-- the validator does not recurse into it (nested DTOs, `ListOf`, `ArrayOf`, `MapOf`).
+- **`#[Undefinable]` property** (e.g. its key was missing in the hydrated input): no validation rule is applied to it, including `NotNull`, `IsNull` and rules with `FailWhenNull`, and the validator does not recurse into it (nested DTOs, `ListOf`, `ArrayOf`, `MapOf`).
+- **Any other property** (e.g. a public property of a constructor-less DTO that was never assigned, or an object created without its constructor): validation fails with `not_initialized`. An object that skipped hydration therefore cannot pass validation with a missing required value.
 
 Once the value is present (even explicitly `null`), all rules apply as usual, with `null` handled by each rule's `onNull` behavior.
 
@@ -78,7 +78,7 @@ $validator->validate($hydrator->hydrate(['nickname' => null], ProfilePatch::clas
 $validator->validate($hydrator->hydrate(['nickname' => 'ab'], ProfilePatch::class));  // fails: too_short
 ```
 
-If an undefined value must be rejected, don't mark the property `#[Undefinable]` – hydration then fails on the missing key.
+If an undefined value must be rejected, don't mark the property `#[Undefinable]` – hydration then fails on the missing key, and validation reports `not_initialized` for objects built without the hydrator.
 
 Non-public (`private`/`protected`) promoted constructor properties are validated as well; the validator reads them via reflection.
 
